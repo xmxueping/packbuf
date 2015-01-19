@@ -9,7 +9,9 @@ lightweight data interchange format,like google's protobuf
 1)头部字节
 
   |7|6|5|4|3|2|1|0|
+  
    -----   length
+   
    type  ---------
 
 1.1) type
@@ -24,6 +26,7 @@ length:0~27  短数据格式，后跟0~27字节的数据
        28~31 长数据格式，后跟1~4字节(28为1字节,29为2字节,30为3字节,31为4字节;BE格式;~4G)的长度值(传输值为n-28),再后面紧跟n字节的数据
 
 2)type
+
   0  uint(无符号整数，BE格式，从非零字节存储，长度记录到length字段)
   
   1  sint(有符号整数，先用ZigZag映射到无符号整数，再按照无符号整数存储)
