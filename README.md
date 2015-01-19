@@ -2,7 +2,7 @@
 
 lightweight data interchange format,like google's protobuf
 
-一种协议交换格式(LDIF:Lightweight Data Interchange Format)
+一种协议交换格式
 
 0)在不能使用protobuf协议的地方(比如WSN，6LoWPAN环境)使用
 
@@ -15,6 +15,7 @@ lightweight data interchange format,like google's protobuf
    type  ---------
 
 1.1) type
+
   type:0~7
 
 1.2) length
@@ -44,5 +45,7 @@ length:0~27  短数据格式，后跟0~27字节的数据
   7  float vector(float数组，先映射为uint32_t，再按照无符号整数数组存储)
 
 3)tag(不同于头部中的type，这里供应用程序用)
+
   方案1:占一个字节(0~255)，后跟头部及数据（用于空间要求极为苛刻的环境，比如不能启用数据包分组的无线环境）
+  
   方案2:占两个字节(0~65535)，后跟头部及数据（比Name省空间）
