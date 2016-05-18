@@ -9,6 +9,12 @@
     #pragma warn -8008
     #pragma warn -8066
 #endif
+#if (defined(_MSC_VER))
+    #pragma warning( disable : 4200)
+#endif
+#if (defined(_MSC_VER) || defined(__BORLANDC__))
+    #define inline __inline
+#endif
 
 //changed carefully
 #define PACKBUF_LENGTH_FIELD_MASK      0x1f
@@ -3178,7 +3184,7 @@ unsigned int PACKBUFAPI PackBufValue_GetDouble(PACKBUF_VALUE *value, double *dst
 #endif
 
 #if ENABLE_INT64_SUPPORT
-#define DEFINE_PACKBUFVALUE_GET(NAME,TYPE)                                 \
+#define DEFINE_PACKBUFVALUE_GET(NAME,TYPE)                                      \
 unsigned int PACKBUFAPI PackBufValue_Get##NAME(PACKBUF_VALUE *value,TYPE *dst)  \
 {                                                                   \
     union                                                           \

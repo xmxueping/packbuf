@@ -1,8 +1,18 @@
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+#include <assert.h>
 #include "packingbuf.h"
 
 #if (defined(__BORLANDC__))
     #pragma warn -8008
     #pragma warn -8066
+#endif
+#if (defined(_MSC_VER))
+    #pragma warning( disable : 4200)
+#endif
+#if (defined(_MSC_VER) || defined(__BORLANDC__))
+    #define inline __inline
 #endif
 
 //changed carefully
@@ -173,6 +183,7 @@ int32_t PackingBuf_atoi32(const char *s, unsigned int c)
     return sign ? -val : val;
 }
 
+#if ENABLE_INT64_SUPPORT
 static
 int64_t PackingBuf_atoi64(const char *s, unsigned int c)
 {
@@ -206,6 +217,7 @@ int64_t PackingBuf_atoi64(const char *s, unsigned int c)
 
     return sign ? -n : n;
 }
+#endif
 
 static
 uint32_t PackingBuf_btoi32(const unsigned char *s, unsigned int c)
@@ -221,6 +233,7 @@ uint32_t PackingBuf_btoi32(const unsigned char *s, unsigned int c)
     return n;
 }
 
+#if ENABLE_INT64_SUPPORT
 static
 uint64_t PackingBuf_btoi64(const unsigned char *s, unsigned int c)
 {
@@ -234,6 +247,7 @@ uint64_t PackingBuf_btoi64(const unsigned char *s, unsigned int c)
 
     return n;
 }
+#endif
 
 static inline
 uint32_t encode_float(float value)
@@ -251,6 +265,7 @@ float decode_float(uint32_t value)
     return temp.f;
 }
 
+#if ENABLE_INT64_SUPPORT && ENABLE_DOUBLE_SUPPORT
 static inline
 uint64_t encode_double(double value)
 {
@@ -266,6 +281,7 @@ double decode_double(uint64_t value)
 	temp.i=value;
     return temp.d;
 }
+#endif
 
 static inline
 uint8_t encode_uint8(void* dst, uint8_t val)
@@ -440,6 +456,7 @@ uint8_t get_uint32_encoding_size_EX(uint32_t val)
 }
 #endif
 
+#if ENABLE_INT64_SUPPORT
 static inline
 uint8_t encode_uint64(void* dst, uint64_t val)
 {
@@ -485,6 +502,7 @@ uint8_t get_uint64_encoding_size(uint64_t val)
 
     return count;
 }
+#endif
 
 static inline
 uint8_t encode_varint8(void* dst, uint8_t val)
@@ -693,6 +711,7 @@ uint8_t encode_varint32_EX(void* dst, uint32_t val)
 }
 #endif
 
+#if ENABLE_INT64_SUPPORT
 static
 unsigned int encode_varint64(void* dst, uint64_t val)
 {
@@ -750,20 +769,21 @@ const void* decode_varint64(const void *src
 
     return NULL;
 }
+#endif
 
-void IPVODAPI PackingBuf_Init(PACKINGBUF *packingbuf, void *pBuffer, unsigned int nBufferSize)
+void PACKINGBUFAPI PackingBuf_Init(PACKINGBUF *packingbuf, void *pBuffer, unsigned int nBufferSize)
 {
 	packingbuf->buffer = (unsigned char*)pBuffer;
 	packingbuf->size = nBufferSize;
 	packingbuf->position = 0;
 }
 
-unsigned int IPVODAPI PackingBuf_Finish(PACKINGBUF *packingbuf)
+unsigned int PACKINGBUFAPI PackingBuf_Finish(PACKINGBUF *packingbuf)
 {
 	return packingbuf->position;
 }
 
-void IPVODAPI PackingBuf_Reset(PACKINGBUF *packingbuf)
+void PACKINGBUFAPI PackingBuf_Reset(PACKINGBUF *packingbuf)
 {
     if (packingbuf->buffer != NULL)
     {
@@ -772,7 +792,7 @@ void IPVODAPI PackingBuf_Reset(PACKINGBUF *packingbuf)
 	packingbuf->position = 0;
 }
 
-unsigned int IPVODAPI PackingBuf_PutNull(PACKINGBUF *packingbuf, const char *tag)
+unsigned int PACKINGBUFAPI PackingBuf_PutNull(PACKINGBUF *packingbuf, const char *tag)
 {
     unsigned int tagValueSize = GetTagValueSize(tag);
     unsigned int byteCount = 0;
@@ -850,12 +870,12 @@ unsigned int put_uint8(PACKINGBUF *packingbuf, const char *tag, uint8_t value, u
 	return byteCount;
 }
 
-unsigned int IPVODAPI PackingBuf_PutUint8(PACKINGBUF *packingbuf, const char *tag, uint8_t value)
+unsigned int PACKINGBUFAPI PackingBuf_PutUint8(PACKINGBUF *packingbuf, const char *tag, uint8_t value)
 {
     return put_uint8(packingbuf, tag, value, PACKINGBUF_TYPE_UINT);
 }
 
-unsigned int IPVODAPI PackingBuf_PutInt8(PACKINGBUF *packingbuf, char *tag, int8_t value)
+unsigned int PACKINGBUFAPI PackingBuf_PutInt8(PACKINGBUF *packingbuf, const char *tag, int8_t value)
 {
     return put_uint8(packingbuf, tag, (uint8_t)ZIGZAG_SINT8(value) ,PACKINGBUF_TYPE_SINT);
 }
@@ -901,12 +921,12 @@ unsigned int put_uint16(PACKINGBUF *packingbuf, const char *tag, uint16_t value,
 	return byteCount;
 }
 
-unsigned int IPVODAPI PackingBuf_PutUint16(PACKINGBUF *packingbuf, const char *tag, uint16_t value)
+unsigned int PACKINGBUFAPI PackingBuf_PutUint16(PACKINGBUF *packingbuf, const char *tag, uint16_t value)
 {
     return put_uint16(packingbuf, tag, value, PACKINGBUF_TYPE_UINT);
 }
 
-unsigned int IPVODAPI PackingBuf_PutInt16(PACKINGBUF *packingbuf, const char *tag, int16_t value)
+unsigned int PACKINGBUFAPI PackingBuf_PutInt16(PACKINGBUF *packingbuf, const char *tag, int16_t value)
 {
     return put_uint16(packingbuf, tag, (uint16_t)ZIGZAG_SINT16(value), PACKINGBUF_TYPE_SINT);
 }
@@ -1002,17 +1022,17 @@ unsigned int put_uint32(PACKINGBUF *packingbuf, const char *tag, uint32_t value,
 	return byteCount;
 }
 
-unsigned int IPVODAPI PackingBuf_PutUint32(PACKINGBUF *packingbuf, const char *tag, uint32_t value)
+unsigned int PACKINGBUFAPI PackingBuf_PutUint32(PACKINGBUF *packingbuf, const char *tag, uint32_t value)
 {
     return put_uint32(packingbuf, tag, value, PACKINGBUF_TYPE_UINT);
 }
 
-unsigned int IPVODAPI PackingBuf_PutInt32(PACKINGBUF *packingbuf, const char *tag, int32_t value)
+unsigned int PACKINGBUFAPI PackingBuf_PutInt32(PACKINGBUF *packingbuf, const char *tag, int32_t value)
 {
     return put_uint32(packingbuf, tag, (uint32_t)ZIGZAG_SINT32(value), PACKINGBUF_TYPE_SINT);
 }
 
-unsigned int IPVODAPI PackingBuf_PutUint(PACKINGBUF *packingbuf, const char *tag, unsigned int value)
+unsigned int PACKINGBUFAPI PackingBuf_PutUint(PACKINGBUF *packingbuf, const char *tag, unsigned int value)
 {
     if (sizeof(int) == 1)
     {
@@ -1028,7 +1048,7 @@ unsigned int IPVODAPI PackingBuf_PutUint(PACKINGBUF *packingbuf, const char *tag
     }
 }
 
-unsigned int IPVODAPI PackingBuf_PutInt(PACKINGBUF *packingbuf, const char *tag, int value)
+unsigned int PACKINGBUFAPI PackingBuf_PutInt(PACKINGBUF *packingbuf, const char *tag, int value)
 {
     if (sizeof(int) == 1)
     {
@@ -1044,6 +1064,12 @@ unsigned int IPVODAPI PackingBuf_PutInt(PACKINGBUF *packingbuf, const char *tag,
     }
 }
 
+unsigned int PACKINGBUFAPI PackingBuf_PutFloat(PACKINGBUF *packingbuf, const char *tag, float value)
+{
+	return put_fixed32(packingbuf, tag, encode_float(value), sizeof(float), PACKINGBUF_TYPE_FIXED);
+}
+
+#if ENABLE_INT64_SUPPORT
 static inline
 unsigned int put_fixed64(PACKINGBUF *packingbuf, const char *tag, uint64_t value, uint8_t size, uint8_t type)
 {
@@ -1135,25 +1161,23 @@ unsigned int put_uint64(PACKINGBUF *packingbuf, const char *tag, uint64_t value,
 	return byteCount;
 }
 
-unsigned int IPVODAPI PackingBuf_PutUint64(PACKINGBUF *packingbuf, const char *tag, uint64_t value)
+unsigned int PACKINGBUFAPI PackingBuf_PutUint64(PACKINGBUF *packingbuf, const char *tag, uint64_t value)
 {
     return put_uint64(packingbuf, tag, value, PACKINGBUF_TYPE_UINT);
 }
 
-unsigned int IPVODAPI PackingBuf_PutInt64(PACKINGBUF *packingbuf, const char *tag, int64_t value)
+unsigned int PACKINGBUFAPI PackingBuf_PutInt64(PACKINGBUF *packingbuf, const char *tag, int64_t value)
 {
     return put_uint64(packingbuf, tag, (uint64_t)ZIGZAG_SINT64(value), PACKINGBUF_TYPE_SINT);
 }
 
-unsigned int IPVODAPI PackingBuf_PutFloat(PACKINGBUF *packingbuf, const char *tag, float value)
-{
-	return put_fixed32(packingbuf, tag, encode_float(value), sizeof(float), PACKINGBUF_TYPE_FIXED);
-}
-
-unsigned int IPVODAPI PackingBuf_PutDouble(PACKINGBUF *packingbuf, const char *tag, double value)
+#if ENABLE_DOUBLE_SUPPORT
+unsigned int PACKINGBUFAPI PackingBuf_PutDouble(PACKINGBUF *packingbuf, const char *tag, double value)
 {
 	return put_fixed64(packingbuf, tag, encode_double(value), sizeof(double), PACKINGBUF_TYPE_FIXED);
 }
+#endif
+#endif
 
 static
 unsigned int put_binary(PACKINGBUF *packingbuf, const char *tag, const void *buffer, unsigned int size, unsigned char type)
@@ -1403,19 +1427,19 @@ unsigned int put_binary(PACKINGBUF *packingbuf, const char *tag, const void *buf
     return byteCount;
 }
 
-unsigned int IPVODAPI PackingBuf_PutBinary(PACKINGBUF *packingbuf, const char *tag, const void *buffer, unsigned int size)
+unsigned int PACKINGBUFAPI PackingBuf_PutBinary(PACKINGBUF *packingbuf, const char *tag, const void *buffer, unsigned int size)
 {
     return put_binary(packingbuf, tag, buffer, size, PACKINGBUF_TYPE_BINARY);
 }
 
-unsigned int IPVODAPI PackingBuf_PutString(PACKINGBUF *packingbuf, const char *tag, const char *s)
+unsigned int PACKINGBUFAPI PackingBuf_PutString(PACKINGBUF *packingbuf, const char *tag, const char *s)
 {
 	unsigned int l=strlen(s)+1;	//include terminated '0'
 
     return put_binary(packingbuf, tag, s, l, PACKINGBUF_TYPE_STRING);
 }
 
-unsigned int IPVODAPI PackingBuf_PutStringEx(PACKINGBUF *packingbuf, const char *tag, const char *s, unsigned int length)
+unsigned int PACKINGBUFAPI PackingBuf_PutStringEx(PACKINGBUF *packingbuf, const char *tag, const char *s, unsigned int length)
 {
     unsigned int ir=put_binary(packingbuf, tag, s, length+1, PACKINGBUF_TYPE_STRING);//include terminated '0'
 
@@ -1724,22 +1748,22 @@ unsigned int put_binary_end(PACKINGBUF *packingbuf, unsigned int size, const cha
     return byteCount;
 }
 
-unsigned int IPVODAPI PackingBuf_PutBinaryBegin(PACKINGBUF *packingbuf, void **buffer, unsigned int *size)
+unsigned int PACKINGBUFAPI PackingBuf_PutBinaryBegin(PACKINGBUF *packingbuf, void **buffer, unsigned int *size)
 {
     return put_binary_begin(packingbuf, buffer, size);
 }
 
-unsigned int IPVODAPI PackingBuf_PutBinaryEnd(PACKINGBUF *packingbuf, unsigned int size, const char *tag)
+unsigned int PACKINGBUFAPI PackingBuf_PutBinaryEnd(PACKINGBUF *packingbuf, unsigned int size, const char *tag)
 {
     return put_binary_end(packingbuf, size, tag, PACKINGBUF_TYPE_BINARY);
 }
 
-unsigned int IPVODAPI PackingBuf_PutStringBegin(PACKINGBUF *packingbuf, void **buffer, unsigned int *size)
+unsigned int PACKINGBUFAPI PackingBuf_PutStringBegin(PACKINGBUF *packingbuf, void **buffer, unsigned int *size)
 {
     return put_binary_begin(packingbuf, buffer, size);
 }
 
-unsigned int IPVODAPI PackingBuf_PutStringEnd(PACKINGBUF *packingbuf, unsigned int length, const char *tag)
+unsigned int PACKINGBUFAPI PackingBuf_PutStringEnd(PACKINGBUF *packingbuf, unsigned int length, const char *tag)
 {
     unsigned int ir=put_binary_end(packingbuf, length+1, tag, PACKINGBUF_TYPE_STRING);//include terminated '0'
 
@@ -1817,7 +1841,7 @@ unsigned int vector_put_varint32(PACKINGBUF_VECTOR *vector, uint32_t value)
     return size;
 }
 
-unsigned int IPVODAPI PackingBufVector_PutUint8(PACKINGBUF_VECTOR *vector, uint8_t value)
+unsigned int PACKINGBUFAPI PackingBufVector_PutUint8(PACKINGBUF_VECTOR *vector, uint8_t value)
 {
     if (vector->type == PACKINGBUF_TYPE_UINT_VECTOR)
     {   /* PACKINGBUF_TYPE_UINT_VECTOR */
@@ -1838,7 +1862,7 @@ unsigned int IPVODAPI PackingBufVector_PutUint8(PACKINGBUF_VECTOR *vector, uint8
     return 0;
 }
 
-unsigned int IPVODAPI PackingBufVector_PutUint16(PACKINGBUF_VECTOR *vector, uint16_t value)
+unsigned int PACKINGBUFAPI PackingBufVector_PutUint16(PACKINGBUF_VECTOR *vector, uint16_t value)
 {
     if (vector->type == PACKINGBUF_TYPE_UINT_VECTOR)
     {   /* PACKINGBUF_TYPE_UINT_VECTOR */
@@ -1859,7 +1883,7 @@ unsigned int IPVODAPI PackingBufVector_PutUint16(PACKINGBUF_VECTOR *vector, uint
     return 0;
 }
 
-unsigned int IPVODAPI PackingBufVector_PutUint32(PACKINGBUF_VECTOR *vector, uint32_t value)
+unsigned int PACKINGBUFAPI PackingBufVector_PutUint32(PACKINGBUF_VECTOR *vector, uint32_t value)
 {
     if (vector->type == PACKINGBUF_TYPE_UINT_VECTOR)
     {   /* PACKINGBUF_TYPE_UINT_VECTOR */
@@ -1880,7 +1904,7 @@ unsigned int IPVODAPI PackingBufVector_PutUint32(PACKINGBUF_VECTOR *vector, uint
     return 0;
 }
 
-unsigned int IPVODAPI PackingBufVector_PutInt8(PACKINGBUF_VECTOR *vector, int8_t value)
+unsigned int PACKINGBUFAPI PackingBufVector_PutInt8(PACKINGBUF_VECTOR *vector, int8_t value)
 {
     if (vector->type == PACKINGBUF_TYPE_SINT_VECTOR)
     {   /* PACKINGBUF_TYPE_SINT_VECTOR */
@@ -1900,7 +1924,7 @@ unsigned int IPVODAPI PackingBufVector_PutInt8(PACKINGBUF_VECTOR *vector, int8_t
     return 0;
 }
 
-unsigned int IPVODAPI PackingBufVector_PutInt16(PACKINGBUF_VECTOR *vector, int16_t value)
+unsigned int PACKINGBUFAPI PackingBufVector_PutInt16(PACKINGBUF_VECTOR *vector, int16_t value)
 {
     if (vector->type == PACKINGBUF_TYPE_SINT_VECTOR)
     {   /* PACKINGBUF_TYPE_SINT_VECTOR */
@@ -1920,7 +1944,7 @@ unsigned int IPVODAPI PackingBufVector_PutInt16(PACKINGBUF_VECTOR *vector, int16
     return 0;
 }
 
-unsigned int IPVODAPI PackingBufVector_PutInt32(PACKINGBUF_VECTOR *vector, int32_t value)
+unsigned int PACKINGBUFAPI PackingBufVector_PutInt32(PACKINGBUF_VECTOR *vector, int32_t value)
 {
     if (vector->type == PACKINGBUF_TYPE_SINT_VECTOR)
     {   /* PACKINGBUF_TYPE_SINT_VECTOR */
@@ -1940,7 +1964,7 @@ unsigned int IPVODAPI PackingBufVector_PutInt32(PACKINGBUF_VECTOR *vector, int32
     return 0;
 }
 
-unsigned int IPVODAPI PackingBufVector_PutInt(PACKINGBUF_VECTOR *vector, int value)
+unsigned int PACKINGBUFAPI PackingBufVector_PutInt(PACKINGBUF_VECTOR *vector, int value)
 {
     if (vector->type == PACKINGBUF_TYPE_SINT_VECTOR)
     {   /* PACKINGBUF_TYPE_SINT_VECTOR */
@@ -1982,7 +2006,7 @@ unsigned int IPVODAPI PackingBufVector_PutInt(PACKINGBUF_VECTOR *vector, int val
     return 0;
 }
 
-unsigned int IPVODAPI PackingBufVector_PutUint(PACKINGBUF_VECTOR *vector, unsigned int value)
+unsigned int PACKINGBUFAPI PackingBufVector_PutUint(PACKINGBUF_VECTOR *vector, unsigned int value)
 {
     if (vector->type == PACKINGBUF_TYPE_UINT_VECTOR)
     {   /* PACKINGBUF_TYPE_UINT_VECTOR */
@@ -2027,6 +2051,28 @@ unsigned int IPVODAPI PackingBufVector_PutUint(PACKINGBUF_VECTOR *vector, unsign
     return 0;
 }
 
+unsigned int PACKINGBUFAPI PackingBufVector_PutFloat(PACKINGBUF_VECTOR *vector, float value)
+{
+    if (vector->type == PACKINGBUF_TYPE_FLOAT_VECTOR)
+    {   /* PACKINGBUF_TYPE_FLOAT_VECTOR */
+        return vector_put_varint32(vector, encode_float(value));
+    }else
+    if (vector->type == PACKINGBUF_TYPE_UINT_VECTOR)
+    {   /* PACKINGBUF_TYPE_UINT_VECTOR */
+        return vector_put_varint32(vector, (uint32_t)value);
+    }else
+    if (vector->type == PACKINGBUF_TYPE_SINT_VECTOR)
+    {   /* PACKINGBUF_TYPE_SINT_VECTOR */
+        int32_t v=(int32_t)value;
+        return vector_put_varint32(vector, (uint32_t)ZIGZAG_SINT32(v));
+    }else
+    {
+    }
+
+    return 0;
+}
+
+#if ENABLE_INT64_SUPPORT
 static
 unsigned int vector_put_varint64(PACKINGBUF_VECTOR *vector, uint64_t value)
 {
@@ -2049,7 +2095,7 @@ unsigned int vector_put_varint64(PACKINGBUF_VECTOR *vector, uint64_t value)
     return size;
 }
 
-unsigned int IPVODAPI PackingBufVector_PutUint64(PACKINGBUF_VECTOR *vector, uint64_t value)
+unsigned int PACKINGBUFAPI PackingBufVector_PutUint64(PACKINGBUF_VECTOR *vector, uint64_t value)
 {
     if (vector->type == PACKINGBUF_TYPE_UINT_VECTOR)
     {   /* PACKINGBUF_TYPE_UINT_VECTOR */
@@ -2070,7 +2116,7 @@ unsigned int IPVODAPI PackingBufVector_PutUint64(PACKINGBUF_VECTOR *vector, uint
     return 0;
 }
 
-unsigned int IPVODAPI PackingBufVector_PutInt64(PACKINGBUF_VECTOR *vector, int64_t value)
+unsigned int PACKINGBUFAPI PackingBufVector_PutInt64(PACKINGBUF_VECTOR *vector, int64_t value)
 {
     if (vector->type == PACKINGBUF_TYPE_SINT_VECTOR)
     {   /* PACKINGBUF_TYPE_SINT_VECTOR */
@@ -2090,28 +2136,7 @@ unsigned int IPVODAPI PackingBufVector_PutInt64(PACKINGBUF_VECTOR *vector, int64
     return 0;
 }
 
-unsigned int IPVODAPI PackingBufVector_PutFloat(PACKINGBUF_VECTOR *vector, float value)
-{
-    if (vector->type == PACKINGBUF_TYPE_FLOAT_VECTOR)
-    {   /* PACKINGBUF_TYPE_FLOAT_VECTOR */
-        return vector_put_varint32(vector, encode_float(value));
-    }else
-    if (vector->type == PACKINGBUF_TYPE_UINT_VECTOR)
-    {   /* PACKINGBUF_TYPE_UINT_VECTOR */
-        return vector_put_varint32(vector, (uint32_t)value);
-    }else
-    if (vector->type == PACKINGBUF_TYPE_SINT_VECTOR)
-    {   /* PACKINGBUF_TYPE_SINT_VECTOR */
-        int32_t v=(int32_t)value;
-        return vector_put_varint32(vector, (uint32_t)ZIGZAG_SINT32(v));
-    }else
-    {
-    }
-
-    return 0;
-}
-
-unsigned int IPVODAPI PackingBufVector_PutDouble(PACKINGBUF_VECTOR *vector, double value)
+unsigned int PACKINGBUFAPI PackingBufVector_PutDouble(PACKINGBUF_VECTOR *vector, double value)
 {
     if (vector->type == PACKINGBUF_TYPE_FLOAT_VECTOR)
     {   /* PACKINGBUF_TYPE_FLOAT_VECTOR */
@@ -2131,9 +2156,10 @@ unsigned int IPVODAPI PackingBufVector_PutDouble(PACKINGBUF_VECTOR *vector, doub
 
     return 0;
 }
+#endif
 
 #define DEFINE_PACKINGBUFVECTOR_GETSINT32(NAME,TYPE)                              \
-unsigned int IPVODAPI PackingBufVector_Get##NAME(PACKINGBUF_VECTOR *vector,TYPE *value) \
+unsigned int PACKINGBUFAPI PackingBufVector_Get##NAME(PACKINGBUF_VECTOR *vector,TYPE *value) \
 {                                                                           \
     uint32_t temp;                                                          \
     unsigned char *ptr = (unsigned char *)decode_varint32(vector->buffer    \
@@ -2175,7 +2201,7 @@ DEFINE_PACKINGBUFVECTOR_GETSINT32(Int16,  int16_t);
 DEFINE_PACKINGBUFVECTOR_GETSINT32(Int32,  int32_t);
 
 #define DEFINE_PACKINGBUFVECTOR_GETUINT32(NAME,TYPE)                              \
-unsigned int IPVODAPI PackingBufVector_Get##NAME(PACKINGBUF_VECTOR *vector,TYPE *value) \
+unsigned int PACKINGBUFAPI PackingBufVector_Get##NAME(PACKINGBUF_VECTOR *vector,TYPE *value) \
 {                                                                           \
     uint32_t temp;                                                          \
     unsigned char *ptr = (unsigned char *)decode_varint32(vector->buffer    \
@@ -2217,7 +2243,7 @@ DEFINE_PACKINGBUFVECTOR_GETUINT32(Uint16, uint16_t);
 DEFINE_PACKINGBUFVECTOR_GETUINT32(Uint32, uint32_t);
 
 #if 0
-unsigned int IPVODAPI PackingBufVector_GetUint32(PACKINGBUF_VECTOR *vector, uint32_t *value)
+unsigned int PACKINGBUFAPI PackingBufVector_GetUint32(PACKINGBUF_VECTOR *vector, uint32_t *value)
 {
     uint32_t temp;
     const char *ptr = decode_varint32(vector->buffer
@@ -2255,7 +2281,7 @@ unsigned int IPVODAPI PackingBufVector_GetUint32(PACKINGBUF_VECTOR *vector, uint
 #endif
 
 #define DEFINE_PACKINGBUFVECTOR_GETFLOAT(NAME,TYPE)                               \
-unsigned int IPVODAPI PackingBufVector_Get##NAME(PACKINGBUF_VECTOR *vector,TYPE *value) \
+unsigned int PACKINGBUFAPI PackingBufVector_Get##NAME(PACKINGBUF_VECTOR *vector,TYPE *value) \
 {                                                                           \
     uint32_t temp;                                                          \
     unsigned char *ptr = (unsigned char *)decode_varint32(vector->buffer    \
@@ -2295,7 +2321,8 @@ unsigned int IPVODAPI PackingBufVector_Get##NAME(PACKINGBUF_VECTOR *vector,TYPE 
 DEFINE_PACKINGBUFVECTOR_GETFLOAT(Float,  float);
 DEFINE_PACKINGBUFVECTOR_GETFLOAT(Double, double);
 
-unsigned int IPVODAPI PackingBufVector_GetInt64(PACKINGBUF_VECTOR *vector, int64_t *value)
+#if ENABLE_INT64_SUPPORT
+unsigned int PACKINGBUFAPI PackingBufVector_GetInt64(PACKINGBUF_VECTOR *vector, int64_t *value)
 {
     uint64_t temp;
     unsigned char *ptr = (unsigned char *)decode_varint64(vector->buffer
@@ -2332,7 +2359,7 @@ unsigned int IPVODAPI PackingBufVector_GetInt64(PACKINGBUF_VECTOR *vector, int64
     return 0;
 }
 
-unsigned int IPVODAPI PackingBufVector_GetUint64(PACKINGBUF_VECTOR *vector, uint64_t *value)
+unsigned int PACKINGBUFAPI PackingBufVector_GetUint64(PACKINGBUF_VECTOR *vector, uint64_t *value)
 {
     uint64_t temp;
     unsigned char *ptr = (unsigned char *)decode_varint64(vector->buffer
@@ -2368,9 +2395,10 @@ unsigned int IPVODAPI PackingBufVector_GetUint64(PACKINGBUF_VECTOR *vector, uint
 
     return 0;
 }
+#endif
 
 #if 0
-unsigned int IPVODAPI PackingBufVector_GetInt8(PACKINGBUF_VECTOR *vector, int8_t *value)
+unsigned int PACKINGBUFAPI PackingBufVector_GetInt8(PACKINGBUF_VECTOR *vector, int8_t *value)
 {
     uint32_t temp;
     const char *ptr = decode_varint32(vector->buffer
@@ -2404,7 +2432,7 @@ unsigned int IPVODAPI PackingBufVector_GetInt8(PACKINGBUF_VECTOR *vector, int8_t
 }
 #endif
 
-unsigned int IPVODAPI PackingBuf_PutVectorBegin(PACKINGBUF *packingbuf, PACKINGBUF_VECTOR *vector, enum PACKINGBUF_VECTOR_TYPE vectorType)
+unsigned int PACKINGBUFAPI PackingBuf_PutVectorBegin(PACKINGBUF *packingbuf, PACKINGBUF_VECTOR *vector, enum PACKINGBUF_VECTOR_TYPE vectorType)
 {
     unsigned int ir = put_binary_begin(packingbuf, (void**)&vector->buffer, &vector->size);
     if (ir != 0)
@@ -2417,12 +2445,12 @@ unsigned int IPVODAPI PackingBuf_PutVectorBegin(PACKINGBUF *packingbuf, PACKINGB
     return 0;
 }
 
-unsigned int IPVODAPI PackingBuf_PutVectorEnd(PACKINGBUF *packingbuf, PACKINGBUF_VECTOR *vector, const char *tag)
+unsigned int PACKINGBUFAPI PackingBuf_PutVectorEnd(PACKINGBUF *packingbuf, PACKINGBUF_VECTOR *vector, const char *tag)
 {
     return put_binary_end(packingbuf, vector->position, tag, vector->type);
 }
 
-unsigned int IPVODAPI PackingBuf_Find(PACKINGBUF *packingbuf, PACKINGBUF_VALUE *value, const char *tag, uint8_t casecmp)
+unsigned int PACKINGBUFAPI PackingBuf_Find(PACKINGBUF *packingbuf, PACKINGBUF_VALUE *value, const char *tag, uint8_t casecmp)
 {
     unsigned char *buffer = packingbuf->buffer;
     unsigned int   position = packingbuf->position;
@@ -2569,7 +2597,7 @@ unsigned int IPVODAPI PackingBuf_Find(PACKINGBUF *packingbuf, PACKINGBUF_VALUE *
     return 0;
 }
 
-unsigned int IPVODAPI PackingBuf_Count(PACKINGBUF *packingbuf, int origin)
+unsigned int PACKINGBUFAPI PackingBuf_Count(PACKINGBUF *packingbuf, int origin)
 {
     unsigned char *buffer = packingbuf->buffer;
     unsigned int   position = packingbuf->position;
@@ -2651,7 +2679,7 @@ unsigned int IPVODAPI PackingBuf_Count(PACKINGBUF *packingbuf, int origin)
     return count;
 }
 
-unsigned int IPVODAPI PackingBuf_Skip(PACKINGBUF *packingbuf)
+unsigned int PACKINGBUFAPI PackingBuf_Skip(PACKINGBUF *packingbuf)
 {
     do
     {
@@ -2724,7 +2752,7 @@ unsigned int IPVODAPI PackingBuf_Skip(PACKINGBUF *packingbuf)
     return 0;
 }
 
-unsigned int IPVODAPI PackingBuf_Get(PACKINGBUF *packingbuf, PACKINGBUF_VALUE *value)
+unsigned int PACKINGBUFAPI PackingBuf_Get(PACKINGBUF *packingbuf, PACKINGBUF_VALUE *value)
 {
     do
     {
@@ -2821,7 +2849,7 @@ unsigned int IPVODAPI PackingBuf_Get(PACKINGBUF *packingbuf, PACKINGBUF_VALUE *v
     return 0;
 }
 
-unsigned int IPVODAPI PackingBuf_Peek(PACKINGBUF *packingbuf, PACKINGBUF_VALUE *value)
+unsigned int PACKINGBUFAPI PackingBuf_Peek(PACKINGBUF *packingbuf, PACKINGBUF_VALUE *value)
 {
     do
     {
@@ -2918,7 +2946,7 @@ unsigned int IPVODAPI PackingBuf_Peek(PACKINGBUF *packingbuf, PACKINGBUF_VALUE *
     return 0;
 }
 
-unsigned int IPVODAPI PackingBufValue_GetFloat(PACKINGBUF_VALUE *value, float *dst)
+unsigned int PACKINGBUFAPI PackingBufValue_GetFloat(PACKINGBUF_VALUE *value, float *dst)
 {
     union
     {
@@ -2926,7 +2954,9 @@ unsigned int IPVODAPI PackingBufValue_GetFloat(PACKINGBUF_VALUE *value, float *d
         uint16_t u16;
         uint32_t u32;
         int32_t  i32;
+#if ENABLE_INT64_SUPPORT
         uint64_t u64;
+#endif
     }temp;
     unsigned int count;
     unsigned int result = 0;
@@ -2961,7 +2991,9 @@ unsigned int IPVODAPI PackingBufValue_GetFloat(PACKINGBUF_VALUE *value, float *d
             }
             result = 2;
         }else
+#if ENABLE_INT64_SUPPORT
         if (value->size <= 4)
+#endif
         {   /* uint32 */
             if (dst != NULL)
             {
@@ -2974,6 +3006,7 @@ unsigned int IPVODAPI PackingBufValue_GetFloat(PACKINGBUF_VALUE *value, float *d
                 *dst = (float)(temp.u32);
             }
             result = 4;
+#if ENABLE_INT64_SUPPORT
         }else
         {   /* uint64 */
             if (dst != NULL)
@@ -2987,6 +3020,7 @@ unsigned int IPVODAPI PackingBufValue_GetFloat(PACKINGBUF_VALUE *value, float *d
                 *dst = (float)(temp.u64);
             }
             result = 8;
+#endif
         }
         break;
 
@@ -3018,7 +3052,9 @@ unsigned int IPVODAPI PackingBufValue_GetFloat(PACKINGBUF_VALUE *value, float *d
             }
             result = 2;
         }else
+#if ENABLE_INT64_SUPPORT
         if (value->size <= 4)
+#endif
         {   /* int32 */
             if (dst != NULL)
             {
@@ -3031,6 +3067,7 @@ unsigned int IPVODAPI PackingBufValue_GetFloat(PACKINGBUF_VALUE *value, float *d
                 *dst = (float)((int32_t)UNZIGZAG(temp.u32));
             }
             result = 4;
+#if ENABLE_INT64_SUPPORT
         }else
         {   /* int64 */
             if (dst != NULL)
@@ -3044,6 +3081,7 @@ unsigned int IPVODAPI PackingBufValue_GetFloat(PACKINGBUF_VALUE *value, float *d
                 *dst = (float)((int64_t)UNZIGZAG(temp.u64));
             }
             result = 8;
+#endif
         }
         break;
 
@@ -3062,6 +3100,7 @@ unsigned int IPVODAPI PackingBufValue_GetFloat(PACKINGBUF_VALUE *value, float *d
             }
             result = 4;
         }else
+#if ENABLE_INT64_SUPPORT
         if (value->size == 8)
         {   /* double */
             if (dst != NULL)
@@ -3076,6 +3115,7 @@ unsigned int IPVODAPI PackingBufValue_GetFloat(PACKINGBUF_VALUE *value, float *d
             }
             result = 8;
         }else
+#endif
         if (value->size <= 1)
         {   /* uint8 */
             if (dst != NULL)
@@ -3103,7 +3143,9 @@ unsigned int IPVODAPI PackingBufValue_GetFloat(PACKINGBUF_VALUE *value, float *d
             }
             result = 2;
         }else
+#if ENABLE_INT64_SUPPORT
         if (value->size <= 4)
+#endif
         {   /* uint32 */
             if (dst != NULL)
             {
@@ -3116,6 +3158,7 @@ unsigned int IPVODAPI PackingBufValue_GetFloat(PACKINGBUF_VALUE *value, float *d
                 *dst = (float)(int32_t)(temp.u32);
             }
             result = 4;
+#if ENABLE_INT64_SUPPORT
         }else
         {   /* uint64 */
             if (dst != NULL)
@@ -3129,6 +3172,7 @@ unsigned int IPVODAPI PackingBufValue_GetFloat(PACKINGBUF_VALUE *value, float *d
                 *dst = (float)(int64_t)(temp.u64);
             }
             result = 8;
+#endif
         }
         break;
 
@@ -3183,7 +3227,8 @@ unsigned int IPVODAPI PackingBufValue_GetFloat(PACKINGBUF_VALUE *value, float *d
     return result;
 }
 
-unsigned int IPVODAPI PackingBufValue_GetDouble(PACKINGBUF_VALUE *value, double *dst)
+#if ENABLE_INT64_SUPPORT && ENABLE_DOUBLE_SUPPORT
+unsigned int PACKINGBUFAPI PackingBufValue_GetDouble(PACKINGBUF_VALUE *value, double *dst)
 {
     union
     {
@@ -3447,9 +3492,11 @@ unsigned int IPVODAPI PackingBufValue_GetDouble(PACKINGBUF_VALUE *value, double 
 
     return result;
 }
+#endif
 
-#define DEFINE_PACKINGBUFVALUE_GET(NAME,TYPE)                                 \
-unsigned int IPVODAPI PackingBufValue_Get##NAME(PACKINGBUF_VALUE *value,TYPE *dst)  \
+#if ENABLE_INT64_SUPPORT
+#define DEFINE_PACKINGBUFVALUE_GET(NAME,TYPE)                                            \
+unsigned int PACKINGBUFAPI PackingBufValue_Get##NAME(PACKINGBUF_VALUE *value,TYPE *dst)  \
 {                                                                   \
     union                                                           \
     {                                                               \
@@ -3745,37 +3792,254 @@ unsigned int IPVODAPI PackingBufValue_Get##NAME(PACKINGBUF_VALUE *value,TYPE *ds
                                                                     \
     return result;                                                  \
 }
+#else
+#define DEFINE_PACKINGBUFVALUE_GET(NAME,TYPE)                                            \
+unsigned int PACKINGBUFAPI PackingBufValue_Get##NAME(PACKINGBUF_VALUE *value,TYPE *dst)  \
+{                                                                   \
+    union                                                           \
+    {                                                               \
+        uint8_t  u8;                                                \
+        uint16_t u16;                                               \
+        uint32_t u32;                                               \
+        int32_t  i32;                                               \
+    }temp;                                                          \
+    unsigned int count;                                             \
+    unsigned int result = 0;                                        \
+                                                                    \
+    switch (value->type)                                            \
+    {                                                               \
+    case PACKINGBUF_TYPE_UINT:                                            \
+        if (value->size <= 1)                                       \
+        {   /* uint8 */                                             \
+            if (dst != NULL)                                        \
+            {                                                       \
+                temp.u8 = 0;                                        \
+                if (value->size != 0)                               \
+                {                                                   \
+                    temp.u8 = value->data[0];                       \
+                }                                                   \
+                *dst = (TYPE)(temp.u8);                             \
+            }                                                       \
+            result = 1;                                             \
+        }else                                                       \
+        if (value->size <= 2)                                       \
+        {   /* uint16 */                                            \
+            if (dst != NULL)                                        \
+            {                                                       \
+                temp.u16 = 0;                                       \
+                for (count=0; count<value->size; count++)           \
+                {                                                   \
+                    temp.u16 <<= 8;                                 \
+                    temp.u16 |= value->data[count];                 \
+                }                                                   \
+                *dst = (TYPE)(temp.u16);                            \
+            }                                                       \
+            result = 2;                                             \
+        }else                                                       \
+        {   /* uint32 */                                            \
+            if (dst != NULL)                                        \
+            {                                                       \
+                temp.u32 = 0;                                       \
+                for (count=0; count<value->size; count++)           \
+                {                                                   \
+                    temp.u32 <<= 8;                                 \
+                    temp.u32 |= value->data[count];                 \
+                }                                                   \
+                *dst = (TYPE)(temp.u32);                            \
+            }                                                       \
+            result = 4;                                             \
+        }                                                           \
+        break;                                                      \
+                                                                    \
+    case PACKINGBUF_TYPE_SINT:                                      \
+        if (value->size <= 1)                                       \
+        {   /* int8 */                                              \
+            if (dst != NULL)                                        \
+            {                                                       \
+                temp.u8 = 0;                                        \
+                if (value->size != 0)                               \
+                {                                                   \
+                    temp.u8 = value->data[0];                       \
+                }                                                   \
+                *dst = (TYPE)((int8_t)UNZIGZAG(temp.u8));           \
+            }                                                       \
+            result = 1;                                             \
+        }else                                                       \
+        if (value->size <= 2)                                       \
+        {   /* int16 */                                             \
+            if (dst != NULL)                                        \
+            {                                                       \
+                temp.u16=0;                                         \
+                for (count=0; count<value->size; count++)           \
+                {                                                   \
+                    temp.u16 <<= 8;                                 \
+                    temp.u16 |= value->data[count];                 \
+                }                                                   \
+                *dst = (TYPE)((int16_t)UNZIGZAG(temp.u16));         \
+            }                                                       \
+            result = 2;                                             \
+        }else                                                       \
+        {   /* int32 */                                             \
+            if (dst != NULL)                                        \
+            {                                                       \
+                temp.u32=0;                                         \
+                for (count=0; count<value->size; count++)           \
+                {                                                   \
+                    temp.u32 <<= 8;                                 \
+                    temp.u32 |= value->data[count];                 \
+                }                                                   \
+                *dst = (TYPE)((int32_t)UNZIGZAG(temp.u32));         \
+            }                                                       \
+            result = 4;                                             \
+        }                                                           \
+        break;                                                      \
+                                                                    \
+    case PACKINGBUF_TYPE_FIXED:                                     \
+        if (value->size == 4)                                       \
+        {   /* float */                                             \
+            if (dst != NULL)                                        \
+            {                                                       \
+                temp.u32 = 0;                                       \
+                for (count=0; count<value->size; count++)           \
+                {                                                   \
+                    temp.u32 <<= 8;                                 \
+                    temp.u32 |= value->data[count];                 \
+                }                                                   \
+                *dst = (TYPE)decode_float(temp.u32);                \
+            }                                                       \
+            result = 4;                                             \
+        }else                                                       \
+        if (value->size <= 1)                                       \
+        {   /* uint8 */                                             \
+            if (dst != NULL)                                        \
+            {                                                       \
+                temp.u8 = 0;                                        \
+                if (value->size != 0)                               \
+                {                                                   \
+                    temp.u8 = value->data[0];                       \
+                }                                                   \
+                *dst = (TYPE)(temp.u8);                             \
+            }                                                       \
+            result = 1;                                             \
+        }else                                                       \
+        if (value->size <= 2)                                       \
+        {   /* uint16 */                                            \
+            if (dst != NULL)                                        \
+            {                                                       \
+                temp.u16 = 0;                                       \
+                for (count=0; count<value->size; count++)           \
+                {                                                   \
+                    temp.u16 <<= 8;                                 \
+                    temp.u16 |= value->data[count];                 \
+                }                                                   \
+                *dst = (TYPE)(temp.u16);                            \
+            }                                                       \
+            result = 2;                                             \
+        }else                                                       \
+        {   /* uint32 */                                            \
+            if (dst != NULL)                                        \
+            {                                                       \
+                temp.u32 = 0;                                       \
+                for (count=0; count<value->size; count++)           \
+                {                                                   \
+                    temp.u32 <<= 8;                                 \
+                    temp.u32 |= value->data[count];                 \
+                }                                                   \
+                *dst = (TYPE)(temp.u32);                            \
+            }                                                       \
+            result = 4;                                             \
+        }                                                           \
+        break;                                                      \
+                                                                    \
+    case PACKINGBUF_TYPE_STRING:                                          \
+        if (dst != NULL)                                            \
+        {   /* int32 */                                         \
+            temp.i32 = PackingBuf_atoi32((char *)value->data,value->size);    \
+            *dst = (TYPE)(temp.i32);                            \
+        }                                                           \
+        result = sizeof(*dst);                                      \
+        break;                                                      \
+                                                                    \
+    case PACKINGBUF_TYPE_BINARY:                                          \
+        if (dst != NULL)                                            \
+        {   /* uint32 */                                        \
+            temp.u32 = PackingBuf_btoi32(value->data,value->size);    \
+            *dst = (TYPE)(temp.u32);                            \
+        }                                                       \
+        result = sizeof(*dst);                                      \
+        break;                                                      \
+                                                                    \
+    case PACKINGBUF_TYPE_UINT_VECTOR:                                     \
+        if (dst != NULL)                                            \
+        {   /* uint32 */                                        \
+            temp.u32 = 0;                                       \
+            decode_varint32(value->data,value->data+value->size,&temp.u32); \
+            *dst = (TYPE)(temp.u32);                            \
+        }                                                       \
+        result = sizeof(*dst);                                      \
+        break;                                                      \
+                                                                    \
+    case PACKINGBUF_TYPE_SINT_VECTOR:                                     \
+        if (dst != NULL)                                            \
+        {   /* uint32 */                                        \
+            temp.u32 = 0;                                       \
+            decode_varint32(value->data,value->data+value->size,&temp.u32); \
+            *dst = (TYPE)((int32_t)UNZIGZAG(temp.u32));         \
+        }                                                           \
+        result = sizeof(*dst);                                      \
+        break;                                                      \
+                                                                    \
+    case PACKINGBUF_TYPE_FLOAT_VECTOR:                                    \
+        if (dst != NULL)                                            \
+        {   /* uint32 */                                            \
+            temp.u32 = 0;                                           \
+            decode_varint32(value->data,value->data+value->size,&temp.u32); \
+            *dst = (TYPE)decode_float(temp.u32);                    \
+        }                                                           \
+        result = 4;                                                 \
+        break;                                                      \
+    }                                                               \
+                                                                    \
+    return result;                                                  \
+}
+#endif
 
 //int 8,16,32,64
 DEFINE_PACKINGBUFVALUE_GET(Int8,  int8_t);
 DEFINE_PACKINGBUFVALUE_GET(Int16, int16_t);
 DEFINE_PACKINGBUFVALUE_GET(Int32, int32_t);
+#if ENABLE_INT64_SUPPORT
 DEFINE_PACKINGBUFVALUE_GET(Int64, int64_t);
+#endif
+
 //uint 8,16,32,64
 DEFINE_PACKINGBUFVALUE_GET(Uint8,  uint8_t);
 DEFINE_PACKINGBUFVALUE_GET(Uint16, uint16_t);
 DEFINE_PACKINGBUFVALUE_GET(Uint32, uint32_t);
+#if ENABLE_INT64_SUPPORT
 DEFINE_PACKINGBUFVALUE_GET(Uint64, uint64_t);
+#endif
+
 //int & uint
 DEFINE_PACKINGBUFVALUE_GET(Int,  int);
 DEFINE_PACKINGBUFVALUE_GET(Uint, unsigned int);
 
-unsigned int IPVODAPI PackingBufValue_IsNull(PACKINGBUF_VALUE *value)
+unsigned int PACKINGBUFAPI PackingBufValue_IsNull(PACKINGBUF_VALUE *value)
 {
     return ((value->type==PACKINGBUF_TYPE_FIXED) && (value->size==0))?1:0;
 }
 
-unsigned int IPVODAPI PackingBufValue_IsInt(PACKINGBUF_VALUE *value)
+unsigned int PACKINGBUFAPI PackingBufValue_IsInt(PACKINGBUF_VALUE *value)
 {
     return (value->type==PACKINGBUF_TYPE_SINT)?1:0;
 }
 
-unsigned int IPVODAPI PackingBufValue_IsUint(PACKINGBUF_VALUE *value)
+unsigned int PACKINGBUFAPI PackingBufValue_IsUint(PACKINGBUF_VALUE *value)
 {
     return (value->type==PACKINGBUF_TYPE_UINT)?1:0;
 }
 
-unsigned int IPVODAPI PackingBufValue_IsInteger(PACKINGBUF_VALUE *value)
+unsigned int PACKINGBUFAPI PackingBufValue_IsInteger(PACKINGBUF_VALUE *value)
 {
     switch (value->type)
     {
@@ -3787,7 +4051,7 @@ unsigned int IPVODAPI PackingBufValue_IsInteger(PACKINGBUF_VALUE *value)
     return 0;
 }
 
-unsigned int IPVODAPI PackingBufValue_IsFloat(PACKINGBUF_VALUE *value)
+unsigned int PACKINGBUFAPI PackingBufValue_IsFloat(PACKINGBUF_VALUE *value)
 {
     switch (value->type)
     {
@@ -3801,7 +4065,7 @@ unsigned int IPVODAPI PackingBufValue_IsFloat(PACKINGBUF_VALUE *value)
     return 0;
 }
 
-unsigned int IPVODAPI PackingBufValue_IsDouble(PACKINGBUF_VALUE *value)
+unsigned int PACKINGBUFAPI PackingBufValue_IsDouble(PACKINGBUF_VALUE *value)
 {
     switch (value->type)
     {
@@ -3815,17 +4079,17 @@ unsigned int IPVODAPI PackingBufValue_IsDouble(PACKINGBUF_VALUE *value)
     return 0;
 }
 
-unsigned int IPVODAPI PackingBufValue_IsIntVector(PACKINGBUF_VALUE *value)
+unsigned int PACKINGBUFAPI PackingBufValue_IsIntVector(PACKINGBUF_VALUE *value)
 {
     return (value->type==PACKINGBUF_TYPE_SINT_VECTOR)?1:0;
 }
 
-unsigned int IPVODAPI PackingBufValue_IsUintVector(PACKINGBUF_VALUE *value)
+unsigned int PACKINGBUFAPI PackingBufValue_IsUintVector(PACKINGBUF_VALUE *value)
 {
     return (value->type==PACKINGBUF_TYPE_UINT_VECTOR)?1:0;
 }
 
-unsigned int IPVODAPI PackingBufValue_IsIntegerVector(PACKINGBUF_VALUE *value)
+unsigned int PACKINGBUFAPI PackingBufValue_IsIntegerVector(PACKINGBUF_VALUE *value)
 {
     switch (value->type)
     {
@@ -3837,17 +4101,17 @@ unsigned int IPVODAPI PackingBufValue_IsIntegerVector(PACKINGBUF_VALUE *value)
     return 0;
 }
 
-unsigned int IPVODAPI PackingBufValue_IsFloatVector(PACKINGBUF_VALUE *value)
+unsigned int PACKINGBUFAPI PackingBufValue_IsFloatVector(PACKINGBUF_VALUE *value)
 {
     return (value->type==PACKINGBUF_TYPE_FLOAT_VECTOR)?1:0;
 }
 
-unsigned int IPVODAPI PackingBufValue_IsString(PACKINGBUF_VALUE *value)
+unsigned int PACKINGBUFAPI PackingBufValue_IsString(PACKINGBUF_VALUE *value)
 {
     return (value->type==PACKINGBUF_TYPE_STRING)?1:0;
 }
 
-unsigned int IPVODAPI PackingBufValue_IsBinary(PACKINGBUF_VALUE *value)
+unsigned int PACKINGBUFAPI PackingBufValue_IsBinary(PACKINGBUF_VALUE *value)
 {
     switch (value->type)
     {
@@ -3859,7 +4123,7 @@ unsigned int IPVODAPI PackingBufValue_IsBinary(PACKINGBUF_VALUE *value)
     return 0;
 }
 
-unsigned int IPVODAPI PackingBufValue_GetIntSize(PACKINGBUF_VALUE *value)
+unsigned int PACKINGBUFAPI PackingBufValue_GetIntSize(PACKINGBUF_VALUE *value)
 {
     unsigned int result = 0;
 
@@ -3951,7 +4215,7 @@ unsigned int IPVODAPI PackingBufValue_GetIntSize(PACKINGBUF_VALUE *value)
     return result;
 }
 
-unsigned int IPVODAPI PackingBufValue_GetString(PACKINGBUF_VALUE *value, PACKINGBUF_STRING *to)
+unsigned int PACKINGBUFAPI PackingBufValue_GetString(PACKINGBUF_VALUE *value, PACKINGBUF_STRING *to)
 {
     if ((value->type == PACKINGBUF_TYPE_STRING) &&
         (value->size >= 1)) //value->size include terminated '0'
@@ -3967,7 +4231,7 @@ unsigned int IPVODAPI PackingBufValue_GetString(PACKINGBUF_VALUE *value, PACKING
     return 0;
 }
 
-unsigned int IPVODAPI PackingBufValue_GetBinary(PACKINGBUF_VALUE *value, PACKINGBUF_BINARY *to)
+unsigned int PACKINGBUFAPI PackingBufValue_GetBinary(PACKINGBUF_VALUE *value, PACKINGBUF_BINARY *to)
 {
     switch (value->type)
     {
@@ -3981,7 +4245,7 @@ unsigned int IPVODAPI PackingBufValue_GetBinary(PACKINGBUF_VALUE *value, PACKING
     return 0;
 }
 
-unsigned int IPVODAPI PackingBufValue_GetVector(PACKINGBUF_VALUE *value, PACKINGBUF_VECTOR *vector)
+unsigned int PACKINGBUFAPI PackingBufValue_GetVector(PACKINGBUF_VALUE *value, PACKINGBUF_VECTOR *vector)
 {
     switch(value->type)
     {
