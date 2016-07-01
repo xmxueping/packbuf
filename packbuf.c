@@ -19,7 +19,7 @@
 //changed carefully
 #define PACKBUF_LENGTH_FIELD_MASK      0x1f
 #define PACKBUF_LENGTH_FIELD_BITS      5
-#define PACKBUF_LONG_LENGTH_OCTETS_MAX 3
+#define PACKBUF_LONG_LENGTH_OCTETS_MAX 4
 #define PACKBUF_SHORT_LENGTH_MAX       ((1<<PACKBUF_LENGTH_FIELD_BITS)-1-PACKBUF_LONG_LENGTH_OCTETS_MAX)
 #define PACKBUF_LONG_LENGTH_MIN        (PACKBUF_SHORT_LENGTH_MAX+1)
 
@@ -240,7 +240,7 @@ static inline
 uint32_t encode_float(float value)
 {
     union {float f; uint32_t i;} temp;
-	temp.f=value;
+    temp.f=value;
     return temp.i;
 }
 
@@ -248,7 +248,7 @@ static inline
 float decode_float(uint32_t value)
 {
     union {float f; uint32_t i;} temp;
-	temp.i=value;
+    temp.i=value;
     return temp.f;
 }
 
@@ -257,7 +257,7 @@ static inline
 uint64_t encode_double(double value)
 {
     union {double d; uint64_t i;} temp;
-	temp.d=value;
+    temp.d=value;
     return temp.i;
 }
 
@@ -265,7 +265,7 @@ static inline
 double decode_double(uint64_t value)
 {
     union {double d; uint64_t i;} temp;
-	temp.i=value;
+    temp.i=value;
     return temp.d;
 }
 #endif
@@ -298,23 +298,6 @@ uint8_t get_uint8_encoding_size(uint8_t val)
 }
 
 static inline
-uint8_t get_uint16_encoding_size(uint16_t val)
-{
-    if (val == 0)
-    {
-        return 0;
-    }else
-    if (val < (1<<8))
-    {
-        return 1;
-    }else
-    {
-        return 2;
-    }
-}
-
-
-static inline
 uint8_t encode_uint16(void* dst, uint16_t val)
 {
     unsigned char *ptr = (unsigned char *)dst;
@@ -331,6 +314,22 @@ uint8_t encode_uint16(void* dst, uint16_t val)
     {
         *ptr++ = (unsigned char)(val>>8);
         *ptr   = (unsigned char)(val   );
+        return 2;
+    }
+}
+
+static inline
+uint8_t get_uint16_encoding_size(uint16_t val)
+{
+    if (val == 0)
+    {
+        return 0;
+    }else
+    if (val < (1<<8))
+    {
+        return 1;
+    }else
+    {
         return 2;
     }
 }
@@ -760,29 +759,33 @@ const void* decode_varint64(const void *src
 
 void PACKBUFAPI PackBuf_Init(PACKBUF *packbuf, void *pBuffer, unsigned int nBufferSize)
 {
-	packbuf->buffer = (unsigned char*)pBuffer;
-	packbuf->size = nBufferSize;
-	packbuf->position = 0;
+    packbuf->buffer = (unsigned char*)pBuffer;
+    packbuf->size = nBufferSize;
+    packbuf->position = 0;
 }
 
 unsigned int PACKBUFAPI PackBuf_Finish(PACKBUF *packbuf)
 {
-	return packbuf->position;
+    return packbuf->position;
 }
 
 void PACKBUFAPI PackBuf_Reset(PACKBUF *packbuf)
 {
     if (packbuf->buffer != NULL)
     {
-	    packbuf->buffer -= packbuf->position;
+        packbuf->buffer -= packbuf->position;
     }
-	packbuf->position = 0;
+    packbuf->position = 0;
 }
 
 unsigned int PACKBUFAPI PackBuf_PutNull(PACKBUF *packbuf, PACKBUF_TAG tag)
 {
     if (packbuf->buffer != NULL)
     {
+        if ((packbuf->position+SIZEOF_PACKBUF_TAG+1) < packbuf->position)
+        {
+            return 0;//overflow
+        }
         if ((packbuf->position+SIZEOF_PACKBUF_TAG+1) > packbuf->size)
         {
             return 0;//oom
@@ -807,7 +810,7 @@ unsigned int PACKBUFAPI PackBuf_PutNull(PACKBUF *packbuf, PACKBUF_TAG tag)
         //data: 0 octet
     }
 
-	return SIZEOF_PACKBUF_TAG+1;
+    return SIZEOF_PACKBUF_TAG+1;
 }
 
 static inline
@@ -818,6 +821,10 @@ unsigned int put_uint8(PACKBUF *packbuf, PACKBUF_TAG tag, uint8_t value, unsigne
     assert(byteCount <= PACKBUF_SHORT_LENGTH_MAX);
     if (packbuf->buffer != NULL)
     {
+        if ((packbuf->position+SIZEOF_PACKBUF_TAG+1+byteCount) < packbuf->position)
+        {
+            return 0;//overflow
+        }
         if ((packbuf->position+SIZEOF_PACKBUF_TAG+1+byteCount) > packbuf->size)
         {
             return 0;//oom
@@ -839,7 +846,7 @@ unsigned int put_uint8(PACKBUF *packbuf, PACKBUF_TAG tag, uint8_t value, unsigne
     byteCount += SIZEOF_PACKBUF_TAG+1;//add header length to get total count
     packbuf->position += byteCount;
 
-	return byteCount;
+    return byteCount;
 }
 
 unsigned int PACKBUFAPI PackBuf_PutUint8(PACKBUF *packbuf, PACKBUF_TAG tag, uint8_t value)
@@ -860,6 +867,10 @@ unsigned int put_uint16(PACKBUF *packbuf, PACKBUF_TAG tag, uint16_t value, unsig
     assert(byteCount <= PACKBUF_SHORT_LENGTH_MAX);
     if (packbuf->buffer != NULL)
     {
+        if ((packbuf->position+SIZEOF_PACKBUF_TAG+1+byteCount) < packbuf->position)
+        {
+            return 0;//overflow
+        }
         if ((packbuf->position+SIZEOF_PACKBUF_TAG+1+byteCount) > packbuf->size)
         {
             return 0;//oom
@@ -881,7 +892,7 @@ unsigned int put_uint16(PACKBUF *packbuf, PACKBUF_TAG tag, uint16_t value, unsig
     byteCount += SIZEOF_PACKBUF_TAG+1;//add header length to get total count
     packbuf->position += byteCount;
 
-	return byteCount;
+    return byteCount;
 }
 
 unsigned int PACKBUFAPI PackBuf_PutUint16(PACKBUF *packbuf, PACKBUF_TAG tag, uint16_t value)
@@ -902,9 +913,13 @@ unsigned int put_fixed32(PACKBUF *packbuf, PACKBUF_TAG tag, uint32_t value, uint
 
     if (packbuf->buffer != NULL)
     {
-        if (packbuf->position+SIZEOF_PACKBUF_TAG+1+size > packbuf->size)
+        if ((packbuf->position+SIZEOF_PACKBUF_TAG+1+size) < packbuf->position)
         {
-            return 0;
+            return 0;//overflow
+        }
+        if ((packbuf->position+SIZEOF_PACKBUF_TAG+1+size) > packbuf->size)
+        {
+            return 0;//oom
         }
 
         //tag: (SIZEOF_PACKBUF_TAG) octets
@@ -928,7 +943,7 @@ unsigned int put_fixed32(PACKBUF *packbuf, PACKBUF_TAG tag, uint32_t value, uint
     }
     packbuf->position += SIZEOF_PACKBUF_TAG+1+size;
 
-	return (SIZEOF_PACKBUF_TAG+1+size);
+    return (SIZEOF_PACKBUF_TAG+1+size);
 }
 
 static inline
@@ -939,6 +954,10 @@ unsigned int put_uint32(PACKBUF *packbuf, PACKBUF_TAG tag, uint32_t value, unsig
     assert(byteCount <= PACKBUF_SHORT_LENGTH_MAX);
     if (packbuf->buffer != NULL)
     {
+        if ((packbuf->position+SIZEOF_PACKBUF_TAG+1+byteCount) < packbuf->position)
+        {
+            return 0;//overflow
+        }
         if ((packbuf->position+SIZEOF_PACKBUF_TAG+1+byteCount) > packbuf->size)
         {
             return 0;//oom
@@ -960,7 +979,7 @@ unsigned int put_uint32(PACKBUF *packbuf, PACKBUF_TAG tag, uint32_t value, unsig
     byteCount += SIZEOF_PACKBUF_TAG+1;//add header length to get total count
     packbuf->position += byteCount;
 
-	return byteCount;
+    return byteCount;
 }
 
 unsigned int PACKBUFAPI PackBuf_PutUint32(PACKBUF *packbuf, PACKBUF_TAG tag, uint32_t value)
@@ -975,39 +994,39 @@ unsigned int PACKBUFAPI PackBuf_PutInt32(PACKBUF *packbuf, PACKBUF_TAG tag, int3
 
 unsigned int PACKBUFAPI PackBuf_PutUint(PACKBUF *packbuf, PACKBUF_TAG tag, unsigned int value)
 {
-    if (sizeof(int) == 1)
-    {
-        return put_uint8(packbuf, tag, value, PACKBUF_TYPE_UINT);
-    }
-    if (sizeof(int) == 2)
-    {
-        return put_uint16(packbuf, tag, value, PACKBUF_TYPE_UINT);
-    }
     if (sizeof(int) == 4)
     {
         return put_uint32(packbuf, tag, value, PACKBUF_TYPE_UINT);
+    }else
+    if (sizeof(int) == 2)
+    {
+        return put_uint16(packbuf, tag, value, PACKBUF_TYPE_UINT);
+    }else
+    if (sizeof(int) == 1)
+    {
+        return put_uint8(packbuf, tag, value, PACKBUF_TYPE_UINT);
     }
 }
 
 unsigned int PACKBUFAPI PackBuf_PutInt(PACKBUF *packbuf, PACKBUF_TAG tag, int value)
 {
-    if (sizeof(int) == 1)
-    {
-        return put_uint8(packbuf, tag, (uint32_t)ZIGZAG_SINT8(value), PACKBUF_TYPE_SINT);
-    }
-    if (sizeof(int) == 2)
-    {
-        return put_uint16(packbuf, tag, (uint32_t)ZIGZAG_SINT16(value), PACKBUF_TYPE_SINT);
-    }
     if (sizeof(int) == 4)
     {
         return put_uint32(packbuf, tag, (uint32_t)ZIGZAG_SINT32(value), PACKBUF_TYPE_SINT);
+    }else
+    if (sizeof(int) == 2)
+    {
+        return put_uint16(packbuf, tag, (uint32_t)ZIGZAG_SINT16(value), PACKBUF_TYPE_SINT);
+    }else
+    if (sizeof(int) == 1)
+    {
+        return put_uint8(packbuf, tag, (uint32_t)ZIGZAG_SINT8(value), PACKBUF_TYPE_SINT);
     }
 }
 
 unsigned int PACKBUFAPI PackBuf_PutFloat(PACKBUF *packbuf, PACKBUF_TAG tag, float value)
 {
-	return put_fixed32(packbuf, tag, encode_float(value), sizeof(float), PACKBUF_TYPE_FIXED);
+    return put_fixed32(packbuf, tag, encode_float(value), sizeof(float), PACKBUF_TYPE_FIXED);
 }
 
 #if ENABLE_INT64_SUPPORT
@@ -1019,9 +1038,13 @@ unsigned int put_fixed64(PACKBUF *packbuf, PACKBUF_TAG tag, uint64_t value, uint
 
     if (packbuf->buffer != NULL)
     {
-        if (packbuf->position+SIZEOF_PACKBUF_TAG+1+size > packbuf->size)
+        if ((packbuf->position+SIZEOF_PACKBUF_TAG+1+size) < packbuf->position)
         {
-            return 0;
+            return 0;//overflow
+        }
+        if ((packbuf->position+SIZEOF_PACKBUF_TAG+1+size) > packbuf->size)
+        {
+            return 0;//oom
         }
 
         //tag: SIZEOF_PACKBUF_TAG octets
@@ -1045,7 +1068,7 @@ unsigned int put_fixed64(PACKBUF *packbuf, PACKBUF_TAG tag, uint64_t value, uint
     }
     packbuf->position += SIZEOF_PACKBUF_TAG+1+size;
 
-	return (SIZEOF_PACKBUF_TAG+1+size);
+    return (SIZEOF_PACKBUF_TAG+1+size);
 }
 
 static inline
@@ -1056,6 +1079,10 @@ unsigned int put_uint64(PACKBUF *packbuf, PACKBUF_TAG tag, uint64_t value, unsig
     assert(byteCount <= PACKBUF_SHORT_LENGTH_MAX);
     if (packbuf->buffer != NULL)
     {
+        if ((packbuf->position+SIZEOF_PACKBUF_TAG+1+byteCount) < packbuf->position)
+        {
+            return 0;//overflow
+        }
         if ((packbuf->position+SIZEOF_PACKBUF_TAG+1+byteCount) > packbuf->size)
         {
             return 0;//oom
@@ -1077,7 +1104,7 @@ unsigned int put_uint64(PACKBUF *packbuf, PACKBUF_TAG tag, uint64_t value, unsig
     byteCount += SIZEOF_PACKBUF_TAG+1;//add header length to get total count
     packbuf->position += byteCount;
 
-	return byteCount;
+    return byteCount;
 }
 
 unsigned int PACKBUFAPI PackBuf_PutUint64(PACKBUF *packbuf, PACKBUF_TAG tag, uint64_t value)
@@ -1093,7 +1120,7 @@ unsigned int PACKBUFAPI PackBuf_PutInt64(PACKBUF *packbuf, PACKBUF_TAG tag, int6
 #if ENABLE_DOUBLE_SUPPORT
 unsigned int PACKBUFAPI PackBuf_PutDouble(PACKBUF *packbuf, PACKBUF_TAG tag, double value)
 {
-	return put_fixed64(packbuf, tag, encode_double(value), sizeof(double), PACKBUF_TYPE_FIXED);
+    return put_fixed64(packbuf, tag, encode_double(value), sizeof(double), PACKBUF_TYPE_FIXED);
 }
 #endif
 #endif
@@ -1107,9 +1134,12 @@ unsigned int put_binary(PACKBUF *packbuf, PACKBUF_TAG tag, const void *buffer, u
     {
         if (size <= PACKBUF_SHORT_LENGTH_MAX)
         {
-            if (packbuf->position+SIZEOF_PACKBUF_TAG+(1+0)+size < packbuf->size)
+            assert(packbuf->position+SIZEOF_PACKBUF_TAG+(1+0)+size > packbuf->position); //not overflow
+            assert(packbuf->position+SIZEOF_PACKBUF_TAG+(1+0)+size < packbuf->size); //not oom
+
+            if (((packbuf->position+SIZEOF_PACKBUF_TAG+(1+0)+size) > packbuf->position) &&
+                ((packbuf->position+SIZEOF_PACKBUF_TAG+(1+0)+size) < packbuf->size))
             {
-                assert(packbuf->position+SIZEOF_PACKBUF_TAG+(1+0)+size > packbuf->position);
                 assert(SIZEOF_PACKBUF_TAG+(1+0)+size > size);
 
                 //tag: (SIZEOF_PACKBUF_TAG) octets
@@ -1131,9 +1161,12 @@ unsigned int put_binary(PACKBUF *packbuf, PACKBUF_TAG tag, const void *buffer, u
         }else
         if (size <= 0xff+PACKBUF_LONG_LENGTH_MIN)
         {
-            if (packbuf->position+SIZEOF_PACKBUF_TAG+(1+1)+size < packbuf->size)
+            assert(packbuf->position+SIZEOF_PACKBUF_TAG+(1+1)+size > packbuf->position); //not overflow
+            assert(packbuf->position+SIZEOF_PACKBUF_TAG+(1+1)+size < packbuf->size); //not oom
+
+            if (((packbuf->position+SIZEOF_PACKBUF_TAG+(1+1)+size) > packbuf->position) &&
+                ((packbuf->position+SIZEOF_PACKBUF_TAG+(1+1)+size) < packbuf->size))
             {
-                assert(packbuf->position+SIZEOF_PACKBUF_TAG+(1+1)+size > packbuf->position);
                 assert(SIZEOF_PACKBUF_TAG+(1+1)+size > size);
 
                 //tag: (SIZEOF_PACKBUF_TAG) octets
@@ -1160,9 +1193,12 @@ unsigned int put_binary(PACKBUF *packbuf, PACKBUF_TAG tag, const void *buffer, u
         }else
         if (size <= 0xffff+PACKBUF_LONG_LENGTH_MIN)
         {
-            if (packbuf->position+SIZEOF_PACKBUF_TAG+(1+2)+size < packbuf->size)
+            assert(packbuf->position+SIZEOF_PACKBUF_TAG+(1+2)+size > packbuf->position); //not overflow
+            assert(packbuf->position+SIZEOF_PACKBUF_TAG+(1+2)+size < packbuf->size); //not oom
+
+            if (((packbuf->position+SIZEOF_PACKBUF_TAG+(1+2)+size) > packbuf->position) &&
+                ((packbuf->position+SIZEOF_PACKBUF_TAG+(1+2)+size) < packbuf->size))
             {
-                assert(packbuf->position+SIZEOF_PACKBUF_TAG+(1+2)+size > packbuf->position);
                 assert(SIZEOF_PACKBUF_TAG+(1+2)+size > size);
 
                 //tag: (SIZEOF_PACKBUF_TAG) octets
@@ -1190,9 +1226,12 @@ unsigned int put_binary(PACKBUF *packbuf, PACKBUF_TAG tag, const void *buffer, u
         }else
         if (size <= 0xffffff+PACKBUF_LONG_LENGTH_MIN)
         {
-            if (packbuf->position+SIZEOF_PACKBUF_TAG+(1+3)+size < packbuf->size)
+            assert(packbuf->position+SIZEOF_PACKBUF_TAG+(1+3)+size > packbuf->position); //not overflow
+            assert(packbuf->position+SIZEOF_PACKBUF_TAG+(1+3)+size < packbuf->size); //not oom
+
+            if (((packbuf->position+SIZEOF_PACKBUF_TAG+(1+3)+size) > packbuf->position) &&
+                ((packbuf->position+SIZEOF_PACKBUF_TAG+(1+3)+size) < packbuf->size))
             {
-                assert(packbuf->position+SIZEOF_PACKBUF_TAG+(1+3)+size > packbuf->position);
                 assert(SIZEOF_PACKBUF_TAG+(1+3)+size > size);
 
                 //tag: (SIZEOF_PACKBUF_TAG) octets
@@ -1220,9 +1259,12 @@ unsigned int put_binary(PACKBUF *packbuf, PACKBUF_TAG tag, const void *buffer, u
         #if (PACKBUF_LONG_LENGTH_OCTETS_MAX == 4)
         }else
         {
-            if (packbuf->position+SIZEOF_PACKBUF_TAG+(1+4)+size < packbuf->size)
+            assert(packbuf->position+SIZEOF_PACKBUF_TAG+(1+4)+size > packbuf->position); //not overflow
+            assert(packbuf->position+SIZEOF_PACKBUF_TAG+(1+4)+size < packbuf->size); //not oom
+
+            if (((packbuf->position+SIZEOF_PACKBUF_TAG+(1+4)+size) > packbuf->position) &&
+                ((packbuf->position+SIZEOF_PACKBUF_TAG+(1+4)+size) < packbuf->size))
             {
-                assert(packbuf->position+SIZEOF_PACKBUF_TAG+(1+4)+size > packbuf->position);
                 assert(SIZEOF_PACKBUF_TAG+(1+4)+size > size);
 
                 //tag: (SIZEOF_PACKBUF_TAG) octets
@@ -1287,6 +1329,7 @@ unsigned int put_binary(PACKBUF *packbuf, PACKBUF_TAG tag, const void *buffer, u
         #endif
         #endif
         }
+
         assert(packbuf->position+size > packbuf->position);
         packbuf->position += size;
         byteCount += size;
@@ -1302,7 +1345,7 @@ unsigned int PACKBUFAPI PackBuf_PutBinary(PACKBUF *packbuf, PACKBUF_TAG tag, con
 
 unsigned int PACKBUFAPI PackBuf_PutString(PACKBUF *packbuf, PACKBUF_TAG tag, const char *s)
 {
-	unsigned int l=strlen(s)+1;	//include terminated '0'
+    unsigned int l=strlen(s)+1; //include terminated '0'
 
     return put_binary(packbuf, tag, s, l, PACKBUF_TYPE_STRING);
 }
@@ -1329,7 +1372,7 @@ unsigned int put_binary_begin(PACKBUF *packbuf, void **buffer, unsigned int *siz
         //return (pointer & size) according this position
         if ((packbuf->position+SIZEOF_PACKBUF_TAG+1+0) > packbuf->size)
         {
-		    return 0;
+            return 0;
         }
 
         if (buffer!=NULL)
@@ -1352,7 +1395,7 @@ unsigned int put_binary_begin(PACKBUF *packbuf, void **buffer, unsigned int *siz
         }
     }
 
-	return SIZEOF_PACKBUF_TAG+1+0;
+    return SIZEOF_PACKBUF_TAG+1+0;
 }
 
 static
@@ -1364,9 +1407,12 @@ unsigned int put_binary_end(PACKBUF *packbuf, unsigned int size, PACKBUF_TAG tag
     {
         if (size <= PACKBUF_SHORT_LENGTH_MAX)
         {
-            if (packbuf->position+SIZEOF_PACKBUF_TAG+(1+0)+size < packbuf->size)
+            assert(packbuf->position+SIZEOF_PACKBUF_TAG+(1+0)+size > packbuf->position); //not overflow
+            assert(packbuf->position+SIZEOF_PACKBUF_TAG+(1+0)+size < packbuf->size); //not oom
+
+            if (((packbuf->position+SIZEOF_PACKBUF_TAG+(1+0)+size) > packbuf->position) &&
+                ((packbuf->position+SIZEOF_PACKBUF_TAG+(1+0)+size) < packbuf->size))
             {
-                assert(packbuf->position+SIZEOF_PACKBUF_TAG+(1+0)+size > packbuf->position);
                 assert(SIZEOF_PACKBUF_TAG+(1+0)+size > size);
 
                 //tag: (SIZEOF_PACKBUF_TAG) octets
@@ -1390,9 +1436,12 @@ unsigned int put_binary_end(PACKBUF *packbuf, unsigned int size, PACKBUF_TAG tag
         }else
         if (size <= 0xff+PACKBUF_LONG_LENGTH_MIN)
         {
-            if (packbuf->position+SIZEOF_PACKBUF_TAG+(1+1)+size < packbuf->size)
+            assert(packbuf->position+SIZEOF_PACKBUF_TAG+(1+1)+size > packbuf->position); //not overflow
+            assert(packbuf->position+SIZEOF_PACKBUF_TAG+(1+1)+size < packbuf->size); //not oom
+
+            if (((packbuf->position+SIZEOF_PACKBUF_TAG+(1+1)+size) > packbuf->position) &&
+                ((packbuf->position+SIZEOF_PACKBUF_TAG+(1+1)+size) < packbuf->size))
             {
-                assert(packbuf->position+SIZEOF_PACKBUF_TAG+(1+1)+size > packbuf->position);
                 assert(SIZEOF_PACKBUF_TAG+(1+1)+size > size);
 
                 memmove(&packbuf->buffer[SIZEOF_PACKBUF_TAG+(1+1)], &packbuf->buffer[SIZEOF_PACKBUF_TAG+(1+0)], size);
@@ -1421,9 +1470,12 @@ unsigned int put_binary_end(PACKBUF *packbuf, unsigned int size, PACKBUF_TAG tag
         }else
         if (size <= 0xffff+PACKBUF_LONG_LENGTH_MIN)
         {
-            if (packbuf->position+SIZEOF_PACKBUF_TAG+(1+2)+size < packbuf->size)
+            assert(packbuf->position+SIZEOF_PACKBUF_TAG+(1+2)+size > packbuf->position); //not overflow
+            assert(packbuf->position+SIZEOF_PACKBUF_TAG+(1+2)+size < packbuf->size); //not oom
+
+            if (((packbuf->position+SIZEOF_PACKBUF_TAG+(1+2)+size) > packbuf->position) &&
+                ((packbuf->position+SIZEOF_PACKBUF_TAG+(1+2)+size) < packbuf->size))
             {
-                assert(packbuf->position+SIZEOF_PACKBUF_TAG+(1+2)+size > packbuf->position);
                 assert(SIZEOF_PACKBUF_TAG+(1+2)+size > size);
 
                 memmove(&packbuf->buffer[SIZEOF_PACKBUF_TAG+(1+2)], &packbuf->buffer[SIZEOF_PACKBUF_TAG+(1+0)], size);
@@ -1453,7 +1505,11 @@ unsigned int put_binary_end(PACKBUF *packbuf, unsigned int size, PACKBUF_TAG tag
         }else
         if (size <= 0xffffff+PACKBUF_LONG_LENGTH_MIN)
         {
-            if (packbuf->position+SIZEOF_PACKBUF_TAG+(1+3)+size < packbuf->size)
+            assert(packbuf->position+SIZEOF_PACKBUF_TAG+(1+3)+size > packbuf->position); //not overflow
+            assert(packbuf->position+SIZEOF_PACKBUF_TAG+(1+3)+size < packbuf->size); //not oom
+
+            if (((packbuf->position+SIZEOF_PACKBUF_TAG+(1+3)+size) > packbuf->position) &&
+                ((packbuf->position+SIZEOF_PACKBUF_TAG+(1+3)+size) < packbuf->size))
             {
                 assert(packbuf->position+SIZEOF_PACKBUF_TAG+(1+3)+size > packbuf->position);
                 assert(SIZEOF_PACKBUF_TAG+(1+3)+size > size);
@@ -1485,6 +1541,9 @@ unsigned int put_binary_end(PACKBUF *packbuf, unsigned int size, PACKBUF_TAG tag
         #if (PACKBUF_LONG_LENGTH_OCTETS_MAX == 4)
         }else
         {
+            assert(packbuf->position+SIZEOF_PACKBUF_TAG+(1+4)+size > packbuf->position); //not overflow
+            assert(packbuf->position+SIZEOF_PACKBUF_TAG+(1+4)+size < packbuf->size); //not oom
+
             if (packbuf->position+SIZEOF_PACKBUF_TAG+(1+4)+size < packbuf->size)
             {
                 assert(packbuf->position+SIZEOF_PACKBUF_TAG+(1+4)+size > packbuf->position);
@@ -2384,8 +2443,8 @@ unsigned int PACKBUFAPI PackBuf_Count(PACKBUF *packbuf, int origin)
 
     if (origin)
     {
-    	buffer -= position;
-	    position=0;
+        buffer -= position;
+        position=0;
     }
 
     do
