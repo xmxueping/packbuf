@@ -1006,6 +1006,7 @@ unsigned int PACKBUFAPI PackBuf_PutUint(PACKBUF *packbuf, PACKBUF_TAG tag, unsig
     {
         return put_uint8(packbuf, tag, value, PACKBUF_TYPE_UINT);
     }
+    return 0;
 }
 
 unsigned int PACKBUFAPI PackBuf_PutInt(PACKBUF *packbuf, PACKBUF_TAG tag, int value)
@@ -1022,6 +1023,7 @@ unsigned int PACKBUFAPI PackBuf_PutInt(PACKBUF *packbuf, PACKBUF_TAG tag, int va
     {
         return put_uint8(packbuf, tag, (uint32_t)ZIGZAG_SINT8(value), PACKBUF_TYPE_SINT);
     }
+    return 0;
 }
 
 unsigned int PACKBUFAPI PackBuf_PutFloat(PACKBUF *packbuf, PACKBUF_TAG tag, float value)
@@ -1544,7 +1546,8 @@ unsigned int put_binary_end(PACKBUF *packbuf, unsigned int size, PACKBUF_TAG tag
             assert(packbuf->position+SIZEOF_PACKBUF_TAG+(1+4)+size > packbuf->position); //not overflow
             assert(packbuf->position+SIZEOF_PACKBUF_TAG+(1+4)+size < packbuf->size); //not oom
 
-            if (packbuf->position+SIZEOF_PACKBUF_TAG+(1+4)+size < packbuf->size)
+            if (((packbuf->position+SIZEOF_PACKBUF_TAG+(1+4)+size) > packbuf->position) &&
+                ((packbuf->position+SIZEOF_PACKBUF_TAG+(1+4)+size) < packbuf->size))
             {
                 assert(packbuf->position+SIZEOF_PACKBUF_TAG+(1+4)+size > packbuf->position);
                 assert(SIZEOF_PACKBUF_TAG+(1+4)+size > size);
@@ -1613,6 +1616,7 @@ unsigned int put_binary_end(PACKBUF *packbuf, unsigned int size, PACKBUF_TAG tag
         #endif
         #endif
         }
+
         assert(packbuf->position+size > packbuf->position);
         packbuf->position += size;
         byteCount += size;
@@ -1655,6 +1659,10 @@ unsigned int vector_put_varint8(PACKBUF_VECTOR *vector, uint8_t value)
     unsigned char count;
     unsigned char size = encode_varint8(buffer,value);
 
+    if ((vector->position+size) < vector->position)
+    {
+        return 0;//overflow
+    }
     if ((vector->position+size) > vector->size)
     {
         return 0;//oom
@@ -1677,6 +1685,10 @@ unsigned int vector_put_varint16(PACKBUF_VECTOR *vector, uint16_t value)
     unsigned char count;
     unsigned char size = encode_varint16(buffer,value);
 
+    if ((vector->position+size) < vector->position)
+    {
+        return 0;//overflow
+    }
     if ((vector->position+size) > vector->size)
     {
         return 0;//oom
@@ -1699,6 +1711,10 @@ unsigned int vector_put_varint32(PACKBUF_VECTOR *vector, uint32_t value)
     unsigned char count;
     unsigned char size = encode_varint32(buffer,value);
 
+    if ((vector->position+size) < vector->position)
+    {
+        return 0;//overflow
+    }
     if ((vector->position+size) > vector->size)
     {
         return 0;//oom
@@ -1841,32 +1857,32 @@ unsigned int PACKBUFAPI PackBufVector_PutInt(PACKBUF_VECTOR *vector, int value)
 {
     if (vector->type == PACKBUF_TYPE_SINT_VECTOR)
     {   /* PACKBUF_TYPE_SINT_VECTOR */
+        if (sizeof(int)==4)
+        {
+            return vector_put_varint32(vector, (uint32_t)ZIGZAG_SINT32(value));
+        }else
+        if (sizeof(int)==2)
+        {
+            return vector_put_varint16(vector, (uint16_t)ZIGZAG_SINT16(value));
+        }else
         if (sizeof(int)==1)
         {
             return vector_put_varint8(vector, (uint8_t)ZIGZAG_SINT8(value));
         }
-        if (sizeof(int)==2)
-        {
-            return vector_put_varint16(vector, (uint16_t)ZIGZAG_SINT16(value));
-        }
-        if (sizeof(int)==4)
-        {
-            return vector_put_varint32(vector, (uint32_t)ZIGZAG_SINT32(value));
-        }
     }else
     if (vector->type == PACKBUF_TYPE_UINT_VECTOR)
     {   /* PACKBUF_TYPE_UINT_VECTOR */
-        if (sizeof(int)==1)
-        {
-            return vector_put_varint8(vector, (uint8_t)value);
-        }
-        if (sizeof(int)==2)
-        {
-            return vector_put_varint16(vector, (uint16_t)value);
-        }
         if (sizeof(int)==4)
         {
             return vector_put_varint32(vector, (uint32_t)value);
+        }else
+        if (sizeof(int)==2)
+        {
+            return vector_put_varint16(vector, (uint16_t)value);
+        }else
+        if (sizeof(int)==1)
+        {
+            return vector_put_varint8(vector, (uint8_t)value);
         }
     }else
     if (vector->type == PACKBUF_TYPE_FLOAT_VECTOR)
@@ -1883,35 +1899,35 @@ unsigned int PACKBUFAPI PackBufVector_PutUint(PACKBUF_VECTOR *vector, unsigned i
 {
     if (vector->type == PACKBUF_TYPE_UINT_VECTOR)
     {   /* PACKBUF_TYPE_UINT_VECTOR */
+        if (sizeof(int)==4)
+        {
+            return vector_put_varint32(vector, (uint32_t)value);
+        }else
+        if (sizeof(int)==2)
+        {
+            return vector_put_varint16(vector, (uint16_t)value);
+        }else
         if (sizeof(int)==1)
         {
             return vector_put_varint8(vector, (uint8_t)value);
         }
-        if (sizeof(int)==2)
-        {
-            return vector_put_varint16(vector, (uint16_t)value);
-        }
-        if (sizeof(int)==4)
-        {
-            return vector_put_varint32(vector, (uint32_t)value);
-        }
     }else
     if (vector->type == PACKBUF_TYPE_SINT_VECTOR)
     {   /* PACKBUF_TYPE_SINT_VECTOR */
-        if (sizeof(int)==1)
-        {
-            int8_t v=(int8_t)value;
-            return vector_put_varint32(vector, (uint8_t)ZIGZAG_SINT8(v));
-        }
-        if (sizeof(int)==2)
-        {
-            int16_t v=(int16_t)value;
-            return vector_put_varint32(vector, (uint16_t)ZIGZAG_SINT16(v));
-        }
         if (sizeof(int)==4)
         {
             int32_t v=(int32_t)value;
             return vector_put_varint32(vector, (uint32_t)ZIGZAG_SINT32(v));
+        }else
+        if (sizeof(int)==2)
+        {
+            int16_t v=(int16_t)value;
+            return vector_put_varint32(vector, (uint16_t)ZIGZAG_SINT16(v));
+        }else
+        if (sizeof(int)==1)
+        {
+            int8_t v=(int8_t)value;
+            return vector_put_varint32(vector, (uint8_t)ZIGZAG_SINT8(v));
         }
     }else
     if (vector->type == PACKBUF_TYPE_FLOAT_VECTOR)
@@ -1953,6 +1969,10 @@ unsigned int vector_put_varint64(PACKBUF_VECTOR *vector, uint64_t value)
     unsigned char count;
     unsigned char size = encode_varint64(buffer,value);
 
+    if ((vector->position+size) < vector->position)
+    {
+        return 0;//overflow
+    }
     if ((vector->position+size) > vector->size)
     {
         return 0;//oom
@@ -2033,7 +2053,7 @@ unsigned int PACKBUFAPI PackBufVector_PutDouble(PACKBUF_VECTOR *vector, double v
 #endif
 #endif
 
-#define DEFINE_PACKBUFVECTOR_GETSINT32(NAME,TYPE)                              \
+#define DEFINE_PACKBUFVECTOR_GETSINT32(NAME,TYPE)                           \
 unsigned int PACKBUFAPI PackBufVector_Get##NAME(PACKBUF_VECTOR *vector,TYPE *value) \
 {                                                                           \
     uint32_t temp;                                                          \
@@ -2049,16 +2069,16 @@ unsigned int PACKBUFAPI PackBufVector_Get##NAME(PACKBUF_VECTOR *vector,TYPE *val
                                                                     \
         if (value != NULL)                                          \
         {                                                           \
-            if (vector->type == PACKBUF_TYPE_SINT_VECTOR)              \
-            {   /* PACKBUF_TYPE_SINT_VECTOR */                         \
+            if (vector->type == PACKBUF_TYPE_SINT_VECTOR)           \
+            {   /* PACKBUF_TYPE_SINT_VECTOR */                      \
                 *value = (TYPE)((int32_t)UNZIGZAG(temp));           \
             }else                                                   \
-            if (vector->type == PACKBUF_TYPE_UINT_VECTOR)              \
-            {   /* PACKBUF_TYPE_UINT_VECTOR */                         \
+            if (vector->type == PACKBUF_TYPE_UINT_VECTOR)           \
+            {   /* PACKBUF_TYPE_UINT_VECTOR */                      \
                 *value = (TYPE)temp;                                \
             }else                                                   \
-            if (vector->type == PACKBUF_TYPE_FLOAT_VECTOR)             \
-            {   /* PACKBUF_TYPE_FLOAT_VECTOR */                        \
+            if (vector->type == PACKBUF_TYPE_FLOAT_VECTOR)          \
+            {   /* PACKBUF_TYPE_FLOAT_VECTOR */                     \
                 *value = (TYPE)decode_float(temp);                  \
             }else                                                   \
             {                                                       \
@@ -2075,7 +2095,7 @@ DEFINE_PACKBUFVECTOR_GETSINT32(Int8,   int8_t);
 DEFINE_PACKBUFVECTOR_GETSINT32(Int16,  int16_t);
 DEFINE_PACKBUFVECTOR_GETSINT32(Int32,  int32_t);
 
-#define DEFINE_PACKBUFVECTOR_GETUINT32(NAME,TYPE)                              \
+#define DEFINE_PACKBUFVECTOR_GETUINT32(NAME,TYPE)                           \
 unsigned int PACKBUFAPI PackBufVector_Get##NAME(PACKBUF_VECTOR *vector,TYPE *value) \
 {                                                                           \
     uint32_t temp;                                                          \
@@ -2091,16 +2111,16 @@ unsigned int PACKBUFAPI PackBufVector_Get##NAME(PACKBUF_VECTOR *vector,TYPE *val
                                                                     \
         if (value != NULL)                                          \
         {                                                           \
-            if (vector->type == PACKBUF_TYPE_UINT_VECTOR)              \
-            {   /* PACKBUF_TYPE_UINT_VECTOR */                         \
+            if (vector->type == PACKBUF_TYPE_UINT_VECTOR)           \
+            {   /* PACKBUF_TYPE_UINT_VECTOR */                      \
                 *value = (TYPE)temp;                                \
             }else                                                   \
-            if (vector->type == PACKBUF_TYPE_SINT_VECTOR)              \
-            {   /* PACKBUF_TYPE_SINT_VECTOR */                         \
+            if (vector->type == PACKBUF_TYPE_SINT_VECTOR)           \
+            {   /* PACKBUF_TYPE_SINT_VECTOR */                      \
                 *value = (TYPE)((int32_t)UNZIGZAG(temp));           \
             }else                                                   \
-            if (vector->type == PACKBUF_TYPE_FLOAT_VECTOR)             \
-            {   /* PACKBUF_TYPE_FLOAT_VECTOR */                        \
+            if (vector->type == PACKBUF_TYPE_FLOAT_VECTOR)          \
+            {   /* PACKBUF_TYPE_FLOAT_VECTOR */                     \
                 *value = (TYPE)decode_float(temp);                  \
             }else                                                   \
             {                                                       \
@@ -2155,7 +2175,7 @@ unsigned int PACKBUFAPI PackBufVector_GetUint32(PACKBUF_VECTOR *vector, uint32_t
 }
 #endif
 
-#define DEFINE_PACKBUFVECTOR_GETFLOAT(NAME,TYPE)                               \
+#define DEFINE_PACKBUFVECTOR_GETFLOAT(NAME,TYPE)                            \
 unsigned int PACKBUFAPI PackBufVector_Get##NAME(PACKBUF_VECTOR *vector,TYPE *value) \
 {                                                                           \
     uint32_t temp;                                                          \
@@ -2171,16 +2191,16 @@ unsigned int PACKBUFAPI PackBufVector_Get##NAME(PACKBUF_VECTOR *vector,TYPE *val
                                                                     \
         if (value != NULL)                                          \
         {                                                           \
-            if (vector->type == PACKBUF_TYPE_FLOAT_VECTOR)             \
-            {   /* PACKBUF_TYPE_FLOAT_VECTOR */                        \
+            if (vector->type == PACKBUF_TYPE_FLOAT_VECTOR)          \
+            {   /* PACKBUF_TYPE_FLOAT_VECTOR */                     \
                 *value = (TYPE)decode_float(temp);                  \
             }else                                                   \
-            if (vector->type == PACKBUF_TYPE_UINT_VECTOR)              \
-            {   /* PACKBUF_TYPE_UINT_VECTOR */                         \
+            if (vector->type == PACKBUF_TYPE_UINT_VECTOR)           \
+            {   /* PACKBUF_TYPE_UINT_VECTOR */                      \
                 *value = (TYPE)temp;                                \
             }else                                                   \
-            if (vector->type == PACKBUF_TYPE_SINT_VECTOR)              \
-            {   /* PACKBUF_TYPE_SINT_VECTOR */                         \
+            if (vector->type == PACKBUF_TYPE_SINT_VECTOR)           \
+            {   /* PACKBUF_TYPE_SINT_VECTOR */                      \
                 *value = (TYPE)((int32_t)UNZIGZAG(temp));           \
             }else                                                   \
             {                                                       \
@@ -2333,9 +2353,13 @@ unsigned int PACKBUFAPI PackBuf_Find(PACKBUF *packbuf, PACKBUF_VALUE *value, PAC
 
     do
     {
+        if ((position+SIZEOF_PACKBUF_TAG+1) < position)
+        {
+            break;//overflow
+        }
         if ((position+SIZEOF_PACKBUF_TAG+1) > packbuf->size)
         {
-            break;
+            break;//oom
         }
 
         if (PackBuf_DecodeTag(buffer) == tag)
@@ -2350,9 +2374,13 @@ unsigned int PACKBUFAPI PackBuf_Find(PACKBUF *packbuf, PACKBUF_VALUE *value, PAC
             if (valueSize <= PACKBUF_SHORT_LENGTH_MAX)
             {
                 //1 octet hdr, 0 octet length(extented), valueSize octets data
+                if ((position+1+0+valueSize) < position)
+                {
+                    break;//overflow
+                }
                 if ((position+1+0+valueSize) > packbuf->size)
                 {
-                    break;
+                    break;//oom
                 }
 
                 value->data = &buffer[1];
@@ -2363,6 +2391,10 @@ unsigned int PACKBUFAPI PackBuf_Find(PACKBUF *packbuf, PACKBUF_VALUE *value, PAC
                 uint8_t count = (uint8_t)(valueSize-PACKBUF_SHORT_LENGTH_MAX);
 
                 //1 octet hdr, [count] octets length(extented)
+                if ((position+1+0+count) < position)
+                {
+                    break;//overflow
+                }
                 if ((position+1+count) > packbuf->size)
                 {
                     break;
@@ -2376,13 +2408,17 @@ unsigned int PACKBUFAPI PackBuf_Find(PACKBUF *packbuf, PACKBUF_VALUE *value, PAC
 
                 valueSize += PACKBUF_LONG_LENGTH_MIN;
                 //1 octet hdr, [count] octets length(extented), valueSize octets data
+                if ((position+1+count+valueSize) < position)
+                {
+                    break;//overflow
+                }
                 if ((position+1+count+valueSize) > packbuf->size)
                 {
-                    break;
+                    break;//oom
                 }
                 if ((position+1+count+valueSize) < valueSize)
                 {
-                    break;
+                    break;//overflow
                 }
 
                 value->data = &buffer[1+count];
@@ -2404,9 +2440,13 @@ unsigned int PACKBUFAPI PackBuf_Find(PACKBUF *packbuf, PACKBUF_VALUE *value, PAC
                 uint8_t index;
                 uint8_t count = (uint8_t)(valueSize-PACKBUF_SHORT_LENGTH_MAX);
 
+                if ((position+1+count) < position)
+                {
+                    break;//overflow
+                }
                 if ((position+1+count) > packbuf->size)
                 {
-                    break;
+                    break;//oom
                 }
 
                 valueSize = 0;
@@ -2421,6 +2461,14 @@ unsigned int PACKBUFAPI PackBuf_Find(PACKBUF *packbuf, PACKBUF_VALUE *value, PAC
 
             //add size of (value-hdr)
             valueSize += 1;
+            if ((position+valueSize) < position)
+            {
+                break;//overflow
+            }
+            if ((position+valueSize) < valueSize)
+            {
+                break;//overflow
+            }
             if ((position+valueSize) > packbuf->size)
             {
                 break;
@@ -2449,9 +2497,13 @@ unsigned int PACKBUFAPI PackBuf_Count(PACKBUF *packbuf, int origin)
 
     do
     {
+        if ((position+SIZEOF_PACKBUF_TAG+1) < position)
+        {
+            break;//overflow
+        }
         if ((position+SIZEOF_PACKBUF_TAG+1) > packbuf->size)
         {
-            break;
+            break;//oom
         }
 
         buffer += SIZEOF_PACKBUF_TAG;
@@ -2463,9 +2515,13 @@ unsigned int PACKBUFAPI PackBuf_Count(PACKBUF *packbuf, int origin)
             uint8_t index;
             uint8_t count = (uint8_t)(valueSize-PACKBUF_SHORT_LENGTH_MAX);
 
+            if ((position+1+count) < position)
+            {
+                break;//overflow
+            }
             if ((position+1+count) > packbuf->size)
             {
-                break;
+                break;//oom
             }
 
             valueSize = 0;
@@ -2480,9 +2536,13 @@ unsigned int PACKBUFAPI PackBuf_Count(PACKBUF *packbuf, int origin)
 
         //add size of (value-hdr)
         valueSize += 1;
+        if ((position+valueSize) < position)
+        {
+            break;//overflow
+        }
         if ((position+valueSize) > packbuf->size)
         {
-            break;
+            break;//oom
         }
 
         buffer += valueSize;
@@ -2501,9 +2561,13 @@ unsigned int PACKBUFAPI PackBuf_Skip(PACKBUF *packbuf)
         unsigned int   position = packbuf->position;
         unsigned int   valueSize;
 
+        if ((position+SIZEOF_PACKBUF_TAG+1) < position)
+        {
+            break;//overflow
+        }
         if ((position+SIZEOF_PACKBUF_TAG+1) > packbuf->size)
         {
-            break;
+            break;//oom
         }
 
         //PACKBUF_TAG valueTag = PackBuf_DecodeTag(buffer);
@@ -2516,6 +2580,10 @@ unsigned int PACKBUFAPI PackBuf_Skip(PACKBUF *packbuf)
             uint8_t index;
             uint8_t count = (uint8_t)(valueSize-PACKBUF_SHORT_LENGTH_MAX);
 
+            if ((position+1+count) < position)
+            {
+                break;
+            }
             if ((position+1+count) > packbuf->size)
             {
                 break;
@@ -2532,6 +2600,10 @@ unsigned int PACKBUFAPI PackBuf_Skip(PACKBUF *packbuf)
         }
 
         valueSize += SIZEOF_PACKBUF_TAG+1;
+        if ((packbuf->position+valueSize) < position)
+        {
+            break;
+        }
         if ((packbuf->position+valueSize) > packbuf->size)
         {
             break;
@@ -2554,6 +2626,10 @@ unsigned int PACKBUFAPI PackBuf_Get(PACKBUF *packbuf, PACKBUF_VALUE *value)
         unsigned int   position = packbuf->position;
         unsigned int   valueSize;
 
+        if ((position+SIZEOF_PACKBUF_TAG+1) < position)
+        {
+            break;
+        }
         if ((position+SIZEOF_PACKBUF_TAG+1) > packbuf->size)
         {
             break;
@@ -2569,6 +2645,10 @@ unsigned int PACKBUFAPI PackBuf_Get(PACKBUF *packbuf, PACKBUF_VALUE *value)
         if (valueSize <= PACKBUF_SHORT_LENGTH_MAX)
         {
             //1 octet hdr, 0 octet length(extented), valueSize octets data
+            if ((position+1+0+valueSize) < position)
+            {
+                break;
+            }
             if ((position+1+0+valueSize) > packbuf->size)
             {
                 break;
@@ -2582,6 +2662,10 @@ unsigned int PACKBUFAPI PackBuf_Get(PACKBUF *packbuf, PACKBUF_VALUE *value)
             uint8_t count = (uint8_t)(valueSize-PACKBUF_SHORT_LENGTH_MAX);
 
             //1 octet hdr, [count] octets length(extented)
+            if ((position+1+count) < position)
+            {
+                break;
+            }
             if ((position+1+count) > packbuf->size)
             {
                 break;
@@ -2595,6 +2679,10 @@ unsigned int PACKBUFAPI PackBuf_Get(PACKBUF *packbuf, PACKBUF_VALUE *value)
 
             valueSize += PACKBUF_LONG_LENGTH_MIN;
             //1 octet hdr, [count] octets length(extented), valueSize octets data
+            if ((position+1+count+valueSize) < position)
+            {
+                break;
+            }
             if ((position+1+count+valueSize) > packbuf->size)
             {
                 break;
@@ -2628,6 +2716,10 @@ unsigned int PACKBUFAPI PackBuf_Peek(PACKBUF *packbuf, PACKBUF_VALUE *value)
         unsigned int   position = packbuf->position;
         unsigned int   valueSize;
 
+        if ((position+SIZEOF_PACKBUF_TAG+1) < position)
+        {
+            break;
+        }
         if ((position+SIZEOF_PACKBUF_TAG+1) > packbuf->size)
         {
             break;
@@ -2643,6 +2735,10 @@ unsigned int PACKBUFAPI PackBuf_Peek(PACKBUF *packbuf, PACKBUF_VALUE *value)
         if (valueSize <= PACKBUF_SHORT_LENGTH_MAX)
         {
             //1 octet hdr, 0 octet length(extented), valueSize octets data
+            if ((position+1+0+valueSize) < position)
+            {
+                break;
+            }
             if ((position+1+0+valueSize) > packbuf->size)
             {
                 break;
@@ -2656,6 +2752,10 @@ unsigned int PACKBUFAPI PackBuf_Peek(PACKBUF *packbuf, PACKBUF_VALUE *value)
             uint8_t count = (uint8_t)(valueSize-PACKBUF_SHORT_LENGTH_MAX);
 
             //1 octet hdr, [count] octets length(extented)
+            if ((position+1+count) < position)
+            {
+                break;
+            }
             if ((position+1+count) > packbuf->size)
             {
                 break;
@@ -2669,6 +2769,10 @@ unsigned int PACKBUFAPI PackBuf_Peek(PACKBUF *packbuf, PACKBUF_VALUE *value)
 
             valueSize += PACKBUF_LONG_LENGTH_MIN;
             //1 octet hdr, [count] octets length(extented), valueSize octets data
+            if ((position+1+count+valueSize) < position)
+            {
+                break;
+            }
             if ((position+1+count+valueSize) > packbuf->size)
             {
                 break;
