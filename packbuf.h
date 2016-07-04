@@ -18,8 +18,7 @@
     #define PACKBUFAPI
 #endif
 
-#define SIZEOF_PACKBUF_TAG 1
-typedef uint8_t PACKBUF_TAG;
+typedef uint32_t PACKBUF_TAG;
 
 //PACKBUF(Lightwight/Tagged Data Interchange Format)
 typedef struct PACKBUF        PACKBUF;
@@ -54,6 +53,7 @@ enum PACKBUF_VECTOR_TYPE
 struct PACKBUF
 {
 	unsigned char  *buffer; //buffer[size]
+    unsigned int    tagSize;//sizeof(tag)
 	unsigned int    size;   //sizeof(buffer)
 	unsigned int    position;//current position
 };
@@ -98,7 +98,7 @@ extern "C"
 {
 #endif
 
-void         PACKBUFAPI PackBuf_Init(PACKBUF *packbuf, void *pBuffer, unsigned int nBufferSize);
+void         PACKBUFAPI PackBuf_Init(PACKBUF *packbuf, void *pBuffer, unsigned int nBufferSize, unsigned int nTagSize);
 unsigned int PACKBUFAPI PackBuf_Finish(PACKBUF *packbuf);
 void         PACKBUFAPI PackBuf_Reset(PACKBUF *packbuf);
 
