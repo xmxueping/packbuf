@@ -83,7 +83,7 @@ struct PACKBUF_VECTOR
 	unsigned char  *buffer; //buffer[size]
 	unsigned int    size;   //sizeof(buffer)
 	unsigned int    position;//current position
-    unsigned char   type;   //PACKBUF_VECTOR_TYPE_*
+    unsigned int    type;   //PACKBUF_VECTOR_TYPE_*
 };
 
 struct PACKBUF_VALUE_LIST

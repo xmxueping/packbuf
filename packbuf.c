@@ -755,6 +755,32 @@ const void* decode_varint64(const void *src
 
     return NULL;
 }
+
+static
+unsigned int count_varint_size(const void *src, const void *limit)
+{
+    unsigned char* ptr = (unsigned char*)src;
+    unsigned int   count = 0;
+
+    if (ptr < (unsigned char *)limit)
+    {
+        count++;
+        if ((*ptr&0x80) != 0)
+        {
+            ptr++;
+            while (ptr < (unsigned char *)limit)
+            {
+                count++;
+                if (((*ptr++)&0x80) == 0)
+                {
+                    break;
+                }
+            }
+        }
+    }
+
+    return count;
+}
 #endif
 
 void PACKBUFAPI PackBuf_Init(PACKBUF *packbuf, void *pBuffer, unsigned int nBufferSize)
@@ -1028,7 +1054,7 @@ unsigned int PACKBUFAPI PackBuf_PutInt(PACKBUF *packbuf, PACKBUF_TAG tag, int va
 
 unsigned int PACKBUFAPI PackBuf_PutFloat(PACKBUF *packbuf, PACKBUF_TAG tag, float value)
 {
-    return put_fixed32(packbuf, tag, encode_float(value), sizeof(float), PACKBUF_TYPE_FIXED);
+    return put_fixed32(packbuf, tag, encode_float(value), sizeof(uint32_t), PACKBUF_TYPE_FIXED);
 }
 
 #if ENABLE_INT64_SUPPORT
@@ -1122,7 +1148,7 @@ unsigned int PACKBUFAPI PackBuf_PutInt64(PACKBUF *packbuf, PACKBUF_TAG tag, int6
 #if ENABLE_DOUBLE_SUPPORT
 unsigned int PACKBUFAPI PackBuf_PutDouble(PACKBUF *packbuf, PACKBUF_TAG tag, double value)
 {
-    return put_fixed64(packbuf, tag, encode_double(value), sizeof(double), PACKBUF_TYPE_FIXED);
+    return put_fixed64(packbuf, tag, encode_double(value), sizeof(uint64_t), PACKBUF_TYPE_FIXED);
 }
 #endif
 #endif
@@ -1887,7 +1913,7 @@ unsigned int PACKBUFAPI PackBufVector_PutInt(PACKBUF_VECTOR *vector, int value)
     }else
     if (vector->type == PACKBUF_TYPE_FLOAT_VECTOR)
     {   /* PACKBUF_TYPE_FLOAT_VECTOR */
-        vector_put_varint32(vector, encode_float((float)value));
+        return vector_put_varint32(vector, encode_float((float)value));
     }else
     {
     }
@@ -1966,8 +1992,14 @@ static
 unsigned int vector_put_varint64(PACKBUF_VECTOR *vector, uint64_t value)
 {
     unsigned char buffer[10];//the largest 64 bits integer needs 10 bytes
-    unsigned char count;
-    unsigned char size = encode_varint64(buffer,value);
+    unsigned int  count;
+    unsigned int  size = encode_varint64(buffer,value);
+
+    if (size != count_varint_size(buffer, buffer+size))
+    {
+        int i=0;
+        i++;
+    }
 
     if ((vector->position+size) < vector->position)
     {
@@ -2001,7 +2033,7 @@ unsigned int PACKBUFAPI PackBufVector_PutUint64(PACKBUF_VECTOR *vector, uint64_t
     }else
     if (vector->type == PACKBUF_TYPE_FLOAT_VECTOR)
     {   /* PACKBUF_TYPE_FLOAT_VECTOR */
-        return vector_put_varint32(vector, encode_float((float)value));
+        return vector_put_varint64(vector, encode_double((double)value));
     }else
     {
     }
@@ -2021,7 +2053,7 @@ unsigned int PACKBUFAPI PackBufVector_PutInt64(PACKBUF_VECTOR *vector, int64_t v
     }else
     if (vector->type == PACKBUF_TYPE_FLOAT_VECTOR)
     {   /* PACKBUF_TYPE_FLOAT_VECTOR */
-        return vector_put_varint32(vector, encode_float((float)value));
+        return vector_put_varint64(vector, encode_double((double)value));
     }else
     {
     }
@@ -2034,16 +2066,16 @@ unsigned int PACKBUFAPI PackBufVector_PutDouble(PACKBUF_VECTOR *vector, double v
 {
     if (vector->type == PACKBUF_TYPE_FLOAT_VECTOR)
     {   /* PACKBUF_TYPE_FLOAT_VECTOR */
-        return vector_put_varint32(vector, encode_float((float)value));
+        return vector_put_varint64(vector, encode_double(value));
     }else
     if (vector->type == PACKBUF_TYPE_UINT_VECTOR)
     {   /* PACKBUF_TYPE_UINT_VECTOR */
-        return vector_put_varint32(vector, (uint32_t)value);
+        return vector_put_varint64(vector, (uint64_t)value);
     }else
     if (vector->type == PACKBUF_TYPE_SINT_VECTOR)
     {   /* PACKBUF_TYPE_SINT_VECTOR */
-        int32_t v=(int32_t)value;
-        return vector_put_varint32(vector, (uint32_t)ZIGZAG_SINT32(v));
+        int64_t v=(int64_t)value;
+        return vector_put_varint64(vector, (uint64_t)ZIGZAG_SINT64(v));
     }else
     {
     }
@@ -2175,46 +2207,62 @@ unsigned int PACKBUFAPI PackBufVector_GetUint32(PACKBUF_VECTOR *vector, uint32_t
 }
 #endif
 
-#define DEFINE_PACKBUFVECTOR_GETFLOAT(NAME,TYPE)                            \
-unsigned int PACKBUFAPI PackBufVector_Get##NAME(PACKBUF_VECTOR *vector,TYPE *value) \
-{                                                                           \
-    uint32_t temp;                                                          \
-    unsigned char *ptr = (unsigned char *)decode_varint32(vector->buffer    \
-                                                         ,vector->buffer    \
-                                                         +(vector->size-vector->position) \
-                                                         ,&temp);   \
-    if (ptr != NULL)                                                \
-    {                                                               \
-        unsigned int size = ptr-vector->buffer;                     \
-        vector->buffer += size;                                     \
-        vector->position += size;                                   \
-                                                                    \
-        if (value != NULL)                                          \
-        {                                                           \
-            if (vector->type == PACKBUF_TYPE_FLOAT_VECTOR)          \
-            {   /* PACKBUF_TYPE_FLOAT_VECTOR */                     \
-                *value = (TYPE)decode_float(temp);                  \
-            }else                                                   \
-            if (vector->type == PACKBUF_TYPE_UINT_VECTOR)           \
-            {   /* PACKBUF_TYPE_UINT_VECTOR */                      \
-                *value = (TYPE)temp;                                \
-            }else                                                   \
-            if (vector->type == PACKBUF_TYPE_SINT_VECTOR)           \
-            {   /* PACKBUF_TYPE_SINT_VECTOR */                      \
-                *value = (TYPE)((int32_t)UNZIGZAG(temp));           \
-            }else                                                   \
-            {                                                       \
-                return 0;                                           \
-            }                                                       \
-        }                                                           \
-        return size;                                                \
-    }                                                               \
-                                                                    \
-    return 0;                                                       \
+unsigned int PACKBUFAPI PackBufVector_GetFloat(PACKBUF_VECTOR *vector,float *value)
+{
+#if ENABLE_DOUBLE_SUPPORT
+    uint64_t temp;
+    unsigned char *ptr = (unsigned char *)decode_varint64(vector->buffer
+                                                         ,vector->buffer
+                                                         +(vector->size-vector->position)
+                                                         ,&temp);
+#else
+    uint32_t temp;
+    unsigned char *ptr = (unsigned char *)decode_varint32(vector->buffer
+                                                         ,vector->buffer
+                                                         +(vector->size-vector->position)
+                                                         ,&temp);
+#endif
+    if (ptr != NULL)
+    {
+        unsigned int size = ptr-vector->buffer;
+        vector->buffer += size;
+        vector->position += size;
+
+        if (value != NULL)
+        {
+            if (vector->type == PACKBUF_TYPE_FLOAT_VECTOR)
+            {   /* PACKBUF_TYPE_FLOAT_VECTOR */
+#if ENABLE_DOUBLE_SUPPORT
+                if (size > 5)
+                {   //Double-precision
+                    *value = (float)decode_double(temp);
+                }else
+#endif
+                {   //Single-precision
+                    *value = decode_float((uint32_t)temp);
+                }
+            }else
+            if (vector->type == PACKBUF_TYPE_UINT_VECTOR)
+            {   /* PACKBUF_TYPE_UINT_VECTOR */
+                *value = (float)temp;
+            }else
+            if (vector->type == PACKBUF_TYPE_SINT_VECTOR)
+            {   /* PACKBUF_TYPE_SINT_VECTOR */
+#if ENABLE_DOUBLE_SUPPORT
+                *value = (float)((int64_t)UNZIGZAG(temp));
+#else
+                *value = (float)((int32_t)UNZIGZAG(temp));
+#endif
+            }else
+            {
+                return 0;
+            }
+        }
+        return size;
+    }
+    return 0;
 }
-//float/double
-DEFINE_PACKBUFVECTOR_GETFLOAT(Float,  float);
-DEFINE_PACKBUFVECTOR_GETFLOAT(Double, double);
+
 
 #if ENABLE_INT64_SUPPORT
 unsigned int PACKBUFAPI PackBufVector_GetInt64(PACKBUF_VECTOR *vector, int64_t *value)
@@ -2242,7 +2290,13 @@ unsigned int PACKBUFAPI PackBufVector_GetInt64(PACKBUF_VECTOR *vector, int64_t *
             }else
             if (vector->type == PACKBUF_TYPE_FLOAT_VECTOR)
             {   /* PACKBUF_TYPE_FLOAT_VECTOR */
-                *value = (int64_t)decode_float((uint32_t)temp);
+                if (size <= 5)
+                {   //Single-precision
+                    *value = (int64_t)decode_float((uint32_t)temp);
+                }else
+                {   //Double-precision 
+                    *value = (int64_t)decode_double((uint64_t)temp);
+                }
             }else
             {
                 return 0;
@@ -2279,7 +2333,13 @@ unsigned int PACKBUFAPI PackBufVector_GetUint64(PACKBUF_VECTOR *vector, uint64_t
             }else
             if (vector->type == PACKBUF_TYPE_FLOAT_VECTOR)
             {   /* PACKBUF_TYPE_FLOAT_VECTOR */
-                *value = (uint64_t)decode_float((uint32_t)temp);
+                if (size <= 5)
+                {   //Single-precision
+                    *value = (uint64_t)decode_float((uint32_t)temp);
+                }else
+                {   //Double-precision
+                    *value = (uint64_t)decode_double((uint64_t)temp);
+                }
             }else
             {
                 return 0;
@@ -2290,6 +2350,50 @@ unsigned int PACKBUFAPI PackBufVector_GetUint64(PACKBUF_VECTOR *vector, uint64_t
 
     return 0;
 }
+
+#if ENABLE_DOUBLE_SUPPORT
+unsigned int PACKBUFAPI PackBufVector_GetDouble(PACKBUF_VECTOR *vector,double *value)
+{
+    uint64_t temp;
+    unsigned char *ptr = (unsigned char *)decode_varint64(vector->buffer
+                                                         ,vector->buffer
+                                                         +(vector->size-vector->position)
+                                                         ,&temp);
+    if (ptr != NULL)
+    {
+        unsigned int size = ptr-vector->buffer;
+        vector->buffer += size;
+        vector->position += size;
+
+        if (value != NULL)
+        {
+            if (vector->type == PACKBUF_TYPE_FLOAT_VECTOR)
+            {   /* PACKBUF_TYPE_FLOAT_VECTOR */
+                if (size > 5)
+                {   //Double-precision
+                    *value = decode_double(temp);
+                }else
+                {   //Single-precision
+                    *value = (double)decode_float((uint32_t)temp);
+                }
+            }else
+            if (vector->type == PACKBUF_TYPE_UINT_VECTOR)
+            {   /* PACKBUF_TYPE_UINT_VECTOR */
+                *value = (double)temp;
+            }else
+            if (vector->type == PACKBUF_TYPE_SINT_VECTOR)
+            {   /* PACKBUF_TYPE_SINT_VECTOR */
+                *value = (double)((int64_t)UNZIGZAG(temp));
+            }else
+            {
+                return 0;
+            }
+        }
+        return size;
+    }
+    return 0;
+}
+#endif
 #endif
 
 #if 0
@@ -4493,3 +4597,4 @@ void test()
     }
 }
 #endif
+
