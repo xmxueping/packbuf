@@ -6,14 +6,15 @@
 
 void test()
 {
-    static char buffer[2048];
+    static char buffer[16*1024*1024+4*1024*1024];
+    static char big_binary[sizeof(buffer)-1024*1024];
     PACKBUF packbuf;
     unsigned int size;
 
     {
         char temp[16]={0,1,2,3,4,5,6,7,8,9,0xfa,0xfb,0xfc,0xfd,0xfe,0xff};
 
-        PackBuf_Init(&packbuf,buffer,sizeof(buffer));
+        PackBuf_Init(&packbuf,buffer, sizeof(buffer), SIZEOF_PACKBUF_TAG);
 
         //int 8
         PackBuf_PutInt8(&packbuf,1,0);
@@ -104,6 +105,8 @@ void test()
                 PackBufVector_PutUint(&vector, 200);
                 PackBufVector_PutUint(&vector, 300);
 
+                PackBufVector_PutUint64(&vector, (uint64_t)-1);
+
                 PackBuf_PutVectorEnd(&packbuf, &vector, 100);
             }
 
@@ -112,6 +115,9 @@ void test()
                 PackBufVector_PutInt(&vector, 100);
                 PackBufVector_PutInt(&vector, -200);
                 PackBufVector_PutInt(&vector, -300);
+
+                PackBufVector_PutInt64(&vector, -1);
+                PackBufVector_PutInt64(&vector, 0x7fffffffffffUL);
 
                 PackBuf_PutVectorEnd(&packbuf, &vector, 100);
             }
@@ -122,12 +128,25 @@ void test()
                 PackBufVector_PutFloat(&vector, 200.2);
                 PackBufVector_PutFloat(&vector, 300.3);
 
+                PackBufVector_PutDouble(&vector, 300.3);
+                PackBufVector_PutDouble(&vector, 10010001001e10);
+
                 PackBuf_PutVectorEnd(&packbuf, &vector, 200);
             }
 
             {
                 int iii=0;
             }
+        }
+
+        {
+            unsigned int i;
+            for (i=0; i<sizeof(big_binary); i++)
+            {
+                big_binary[i] = (char)(i+1);
+            }
+
+            PackBuf_PutBinary(&packbuf,0,big_binary,sizeof(big_binary));
         }
 
         size = PackBuf_Finish(&packbuf);
@@ -151,154 +170,154 @@ void test()
 
         PACKBUF_VALUE value;
 
-        PackBuf_Init(&packbuf,buffer,size);
+        PackBuf_Init(&packbuf,buffer,size, SIZEOF_PACKBUF_TAG);
 
         //int8:0
-        PackBuf_GetValue(&packbuf,&value);
+        PackBuf_Get(&packbuf,&value);
         PackBufValue_GetInt8(&value,&i8);
 
         //int8:1
-        PackBuf_GetValue(&packbuf,&value);
+        PackBuf_Get(&packbuf,&value);
         PackBufValue_GetInt8(&value,&i8);
 
         //int8:-1
-        PackBuf_GetValue(&packbuf,&value);
+        PackBuf_Get(&packbuf,&value);
         PackBufValue_GetInt8(&value,&i8);
 
         //int8:127
-        PackBuf_GetValue(&packbuf,&value);
+        PackBuf_Get(&packbuf,&value);
         PackBufValue_GetInt8(&value,&i8);
 
         //int8:-127
-        PackBuf_GetValue(&packbuf,&value);
+        PackBuf_Get(&packbuf,&value);
         PackBufValue_GetInt8(&value,&i8);
 
         //int8:-128
-        PackBuf_GetValue(&packbuf,&value);
+        PackBuf_Get(&packbuf,&value);
         PackBufValue_GetInt8(&value,&i8);
 
 
 
         //uint8:0
-        PackBuf_GetValue(&packbuf,&value);
+        PackBuf_Get(&packbuf,&value);
         PackBufValue_GetUint8(&value,&ui8);
 
         //uint8:1
-        PackBuf_GetValue(&packbuf,&value);
+        PackBuf_Get(&packbuf,&value);
         PackBufValue_GetUint8(&value,&ui8);
 
         //uint8:127
-        PackBuf_GetValue(&packbuf,&value);
+        PackBuf_Get(&packbuf,&value);
         PackBufValue_GetUint8(&value,&ui8);
 
         //uint8:128
-        PackBuf_GetValue(&packbuf,&value);
+        PackBuf_Get(&packbuf,&value);
         PackBufValue_GetUint8(&value,&ui8);
 
         //uint8:255
-        PackBuf_GetValue(&packbuf,&value);
+        PackBuf_Get(&packbuf,&value);
         PackBufValue_GetUint8(&value,0);
 
         //uint8:256
-        PackBuf_GetValue(&packbuf,&value);
+        PackBuf_Get(&packbuf,&value);
         PackBufValue_GetUint8(&value,&ui8);
 
         //int16_t:0
-        PackBuf_GetValue(&packbuf,&value);
+        PackBuf_Get(&packbuf,&value);
         PackBufValue_GetInt16(&value,&i16);
 
         //int16_t:1
-        PackBuf_GetValue(&packbuf,&value);
+        PackBuf_Get(&packbuf,&value);
         PackBufValue_GetInt16(&value,&i16);
 
         //int16_t:-1
-        PackBuf_GetValue(&packbuf,&value);
+        PackBuf_Get(&packbuf,&value);
         PackBufValue_GetInt16(&value,&i16);
 
         //int16_t:127
-        PackBuf_GetValue(&packbuf,&value);
+        PackBuf_Get(&packbuf,&value);
         PackBufValue_GetInt16(&value,&i16);
 
         //int16_t:-127
-        PackBuf_GetValue(&packbuf,&value);
+        PackBuf_Get(&packbuf,&value);
         PackBufValue_GetInt16(&value,&i16);
 
         //int16_t:-128
-        PackBuf_GetValue(&packbuf,&value);
+        PackBuf_Get(&packbuf,&value);
         PackBufValue_GetInt16(&value,&i16);
 
         //int16_t:129
-        PackBuf_GetValue(&packbuf,&value);
+        PackBuf_Get(&packbuf,&value);
         PackBufValue_GetInt16(&value,&i16);
 
         //int16_t:-129
-        PackBuf_GetValue(&packbuf,&value);
+        PackBuf_Get(&packbuf,&value);
         PackBufValue_GetInt16(&value,&i16);
 
         //int16_t:32767
-        PackBuf_GetValue(&packbuf,&value);
+        PackBuf_Get(&packbuf,&value);
         PackBufValue_GetInt16(&value,&i16);
 
         //int16_t:-32767
-        PackBuf_GetValue(&packbuf,&value);
+        PackBuf_Get(&packbuf,&value);
         PackBufValue_GetInt16(&value,&i16);
 
         //int16_t:-32768
-        PackBuf_GetValue(&packbuf,&value);
+        PackBuf_Get(&packbuf,&value);
         PackBufValue_GetInt16(&value,&i16);
 
 
         //uint16:0
-        PackBuf_GetValue(&packbuf,&value);
+        PackBuf_Get(&packbuf,&value);
         PackBufValue_GetUint16(&value,&ui16);
 
         //uint16:1
-        PackBuf_GetValue(&packbuf,&value);
+        PackBuf_Get(&packbuf,&value);
         PackBufValue_GetUint16(&value,&ui16);
 
         //uint16:255
-        PackBuf_GetValue(&packbuf,&value);
+        PackBuf_Get(&packbuf,&value);
         PackBufValue_GetUint16(&value,0);
 
         //uint16:256
-        PackBuf_GetValue(&packbuf,&value);
+        PackBuf_Get(&packbuf,&value);
         PackBufValue_GetUint16(&value,&ui16);
 
         //uint16:65535
-        PackBuf_GetValue(&packbuf,&value);
+        PackBuf_Get(&packbuf,&value);
         PackBufValue_GetUint16(&value,&ui16);
 
         //uint16:65536
-        PackBuf_GetValue(&packbuf,&value);
+        PackBuf_Get(&packbuf,&value);
         PackBufValue_GetUint16(&value,&ui16);
 
         //int32
-        PackBuf_GetValue(&packbuf,&value);
+        PackBuf_Get(&packbuf,&value);
         PackBufValue_GetInt32(&value,&i32);
-        PackBuf_GetValue(&packbuf,&value);
+        PackBuf_Get(&packbuf,&value);
         PackBufValue_GetInt32(&value,&i32);
-        PackBuf_GetValue(&packbuf,&value);
+        PackBuf_Get(&packbuf,&value);
         PackBufValue_GetInt32(&value,&i32);
-        PackBuf_GetValue(&packbuf,&value);
+        PackBuf_Get(&packbuf,&value);
         PackBufValue_GetInt32(&value,&i32);
 
         //uint32
-        PackBuf_GetValue(&packbuf,&value);
+        PackBuf_Get(&packbuf,&value);
         PackBufValue_GetUint32(&value,&ui32);
-        PackBuf_GetValue(&packbuf,&value);
+        PackBuf_Get(&packbuf,&value);
         PackBufValue_GetUint32(&value,&ui32);
-        PackBuf_GetValue(&packbuf,&value);
+        PackBuf_Get(&packbuf,&value);
         PackBufValue_GetUint32(&value,&ui32);
-        PackBuf_GetValue(&packbuf,&value);
+        PackBuf_Get(&packbuf,&value);
         PackBufValue_GetUint32(&value,&ui32);
-        PackBuf_GetValue(&packbuf,&value);
+        PackBuf_Get(&packbuf,&value);
         PackBufValue_GetUint32(&value,&ui32);
 
         //float
-        PackBuf_GetValue(&packbuf,&value);
+        PackBuf_Get(&packbuf,&value);
         PackBufValue_GetFloat(&value,&f);
 
-        while (PackBuf_GetValue(&packbuf, &value) != 0)
+        while (PackBuf_Get(&packbuf, &value) != 0)
         {
             switch (value.type)
             {
@@ -314,7 +333,7 @@ void test()
                 PackBufValue_GetInt32(&value, &i32);
                 PackBufValue_GetInt64(&value, &i64);
                 break;
-            case PACKBUF_TYPE_FIXED:
+            case PACKBUF_TYPE_FLOAT:
                 PackBufValue_GetFloat(&value,&f);
                 PackBufValue_GetDouble(&value,&d);
                 break;
@@ -361,7 +380,8 @@ void test()
                     PACKBUF_VECTOR vector;
                     if (PackBufValue_GetVector(&value, &vector) != 0)
                     {
-                        while(PackBufVector_GetFloat(&vector, &f) !=0)
+                        //while(PackBufVector_GetFloat(&vector, &f) !=0)
+                        while(PackBufVector_GetDouble(&vector, &d) !=0)
                         {
                             ui32=ui32;
                         }

@@ -33,7 +33,7 @@ enum //PACKBUF_TYPE
     PACKBUF_TYPE_MIN           = 0,
     PACKBUF_TYPE_UINT          = 0,
     PACKBUF_TYPE_SINT          = 1,
-    PACKBUF_TYPE_FIXED         = 2,
+    PACKBUF_TYPE_FLOAT         = 2,
     PACKBUF_TYPE_STRING        = 3,
     PACKBUF_TYPE_BINARY        = 4,
     PACKBUF_TYPE_UINT_VECTOR   = 5,
@@ -62,8 +62,8 @@ struct PACKBUF_VALUE
 {
     unsigned char *data; //data[size]
     unsigned int   size; //sizeof(*data)
+    unsigned int   type; //PACKBUF_TYPE_*
     PACKBUF_TAG    tag;  //field tag
-    uint8_t        type; //PACKBUF_TYPE_*
 };
 
 struct PACKBUF_STRING
@@ -181,12 +181,15 @@ unsigned int PACKBUFAPI PackBufValue_IsFloat(PACKBUF_VALUE *value);
 unsigned int PACKBUFAPI PackBufValue_IsDouble(PACKBUF_VALUE *value);
 #endif
 
-unsigned int PACKBUFAPI PackBufValue_IsIntVector(PACKBUF_VALUE *value);
+unsigned int PACKBUFAPI PackBufValue_IsVector(PACKBUF_VALUE *value);
+unsigned int PACKBUFAPI PackBufValue_IsSintVector(PACKBUF_VALUE *value);
 unsigned int PACKBUFAPI PackBufValue_IsUintVector(PACKBUF_VALUE *value);
 unsigned int PACKBUFAPI PackBufValue_IsIntegerVector(PACKBUF_VALUE *value);
+unsigned int PACKBUFAPI PackBufValue_IsFloatVector(PACKBUF_VALUE *value);
 unsigned int PACKBUFAPI PackBufValue_IsString(PACKBUF_VALUE *value);
 unsigned int PACKBUFAPI PackBufValue_IsBinary(PACKBUF_VALUE *value);
 
+unsigned int PACKBUFAPI PackBufValue_GetSize(PACKBUF_VALUE *value);
 unsigned int PACKBUFAPI PackBufValue_GetIntSize(PACKBUF_VALUE *value);
 
 unsigned int PACKBUFAPI PackBufValue_GetString(PACKBUF_VALUE *value, PACKBUF_STRING *to);

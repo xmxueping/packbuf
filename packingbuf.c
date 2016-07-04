@@ -843,7 +843,7 @@ unsigned int PACKINGBUFAPI PackingBuf_PutNull(PACKINGBUF *packingbuf, const char
         }
 
         //type+length: 1 octet
-        packingbuf->buffer[0] = (PACKINGBUF_TYPE_FIXED<<PACKINGBUF_LENGTH_FIELD_BITS)|0;
+        packingbuf->buffer[0] = (PACKINGBUF_TYPE_FLOAT<<PACKINGBUF_LENGTH_FIELD_BITS)|0;
         packingbuf->buffer++;
 
         //data: 0 octet
@@ -1094,7 +1094,7 @@ unsigned int PACKINGBUFAPI PackingBuf_PutInt(PACKINGBUF *packingbuf, const char 
 
 unsigned int PACKINGBUFAPI PackingBuf_PutFloat(PACKINGBUF *packingbuf, const char *tag, float value)
 {
-	return put_fixed32(packingbuf, tag, encode_float(value), sizeof(uint32_t), PACKINGBUF_TYPE_FIXED);
+	return put_fixed32(packingbuf, tag, encode_float(value), sizeof(uint32_t), PACKINGBUF_TYPE_FLOAT);
 }
 
 #if ENABLE_INT64_SUPPORT
@@ -1202,7 +1202,7 @@ unsigned int PACKINGBUFAPI PackingBuf_PutInt64(PACKINGBUF *packingbuf, const cha
 #if ENABLE_DOUBLE_SUPPORT
 unsigned int PACKINGBUFAPI PackingBuf_PutDouble(PACKINGBUF *packingbuf, const char *tag, double value)
 {
-	return put_fixed64(packingbuf, tag, encode_double(value), sizeof(uint64_t), PACKINGBUF_TYPE_FIXED);
+	return put_fixed64(packingbuf, tag, encode_double(value), sizeof(uint64_t), PACKINGBUF_TYPE_FLOAT);
 }
 #endif
 #endif
@@ -3184,7 +3184,7 @@ unsigned int PACKINGBUFAPI PackingBufValue_GetFloat(PACKINGBUF_VALUE *value, flo
         }
         break;
 
-    case PACKINGBUF_TYPE_FIXED:
+    case PACKINGBUF_TYPE_FLOAT:
         if (value->size == 4)
         {   /* float */
             if (dst != NULL)
@@ -3456,7 +3456,7 @@ unsigned int PACKINGBUFAPI PackingBufValue_GetDouble(PACKINGBUF_VALUE *value, do
         }
         break;
 
-    case PACKINGBUF_TYPE_FIXED:
+    case PACKINGBUF_TYPE_FLOAT:
         if (value->size == 4)
         {   /* float */
             if (dst != NULL)
@@ -3725,7 +3725,7 @@ unsigned int PACKINGBUFAPI PackingBufValue_Get##NAME(PACKINGBUF_VALUE *value,TYP
         }                                                           \
         break;                                                      \
                                                                     \
-    case PACKINGBUF_TYPE_FIXED:                                           \
+    case PACKINGBUF_TYPE_FLOAT:                                           \
         if (value->size == 4)                                       \
         {   /* float */                                             \
             if (dst != NULL)                                        \
@@ -3993,7 +3993,7 @@ unsigned int PACKINGBUFAPI PackingBufValue_Get##NAME(PACKINGBUF_VALUE *value,TYP
         }                                                           \
         break;                                                      \
                                                                     \
-    case PACKINGBUF_TYPE_FIXED:                                     \
+    case PACKINGBUF_TYPE_FLOAT:                                     \
         if (value->size == 4)                                       \
         {   /* float */                                             \
             if (dst != NULL)                                        \
@@ -4125,7 +4125,7 @@ DEFINE_PACKINGBUFVALUE_GET(Uint, unsigned int);
 
 unsigned int PACKINGBUFAPI PackingBufValue_IsNull(PACKINGBUF_VALUE *value)
 {
-    return ((value->type==PACKINGBUF_TYPE_FIXED) && (value->size==0))?1:0;
+    return ((value->type==PACKINGBUF_TYPE_FLOAT) && (value->size==0))?1:0;
 }
 
 unsigned int PACKINGBUFAPI PackingBufValue_IsInt(PACKINGBUF_VALUE *value)
@@ -4154,8 +4154,8 @@ unsigned int PACKINGBUFAPI PackingBufValue_IsFloat(PACKINGBUF_VALUE *value)
 {
     switch (value->type)
     {
-    case PACKINGBUF_TYPE_FIXED:
-        if (value->size==sizeof(float))
+    case PACKINGBUF_TYPE_FLOAT:
+        if (value->size==sizeof(uint32_t))
         {
             return 1;
         }
@@ -4164,12 +4164,13 @@ unsigned int PACKINGBUFAPI PackingBufValue_IsFloat(PACKINGBUF_VALUE *value)
     return 0;
 }
 
+#if ENABLE_DOUBLE_SUPPORT
 unsigned int PACKINGBUFAPI PackingBufValue_IsDouble(PACKINGBUF_VALUE *value)
 {
     switch (value->type)
     {
-    case PACKINGBUF_TYPE_FIXED:
-        if (value->size==sizeof(double))
+    case PACKINGBUF_TYPE_FLOAT:
+        if (value->size==sizeof(uint64_t))
         {
             return 1;
         }
@@ -4177,6 +4178,7 @@ unsigned int PACKINGBUFAPI PackingBufValue_IsDouble(PACKINGBUF_VALUE *value)
 
     return 0;
 }
+#endif
 
 unsigned int PACKINGBUFAPI PackingBufValue_IsIntVector(PACKINGBUF_VALUE *value)
 {
@@ -4222,6 +4224,11 @@ unsigned int PACKINGBUFAPI PackingBufValue_IsBinary(PACKINGBUF_VALUE *value)
     return 0;
 }
 
+unsigned int PACKINGBUFAPI PackingBufValue_GetSize(PACKINGBUF_VALUE *value)
+{
+    return value->size;
+}
+
 unsigned int PACKINGBUFAPI PackingBufValue_GetIntSize(PACKINGBUF_VALUE *value)
 {
     unsigned int result = 0;
@@ -4264,7 +4271,7 @@ unsigned int PACKINGBUFAPI PackingBufValue_GetIntSize(PACKINGBUF_VALUE *value)
         }
         break;
 
-    case PACKINGBUF_TYPE_FIXED:
+    case PACKINGBUF_TYPE_FLOAT:
         if (value->size == 4)
         {   /* float */
             result = 4;
@@ -4680,7 +4687,7 @@ void PackingBuf_test()
                 PackingBufValue_GetInt32(&value, &i32);
                 PackingBufValue_GetInt64(&value, &i64);
                 break;
-            case PACKINGBUF_TYPE_FIXED:
+            case PACKINGBUF_TYPE_FLOAT:
                 PackingBufValue_GetFloat(&value,&f);
                 PackingBufValue_GetDouble(&value,&d);
                 break;

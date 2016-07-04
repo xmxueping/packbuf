@@ -31,7 +31,7 @@ enum //PACKINGBUF_TYPE
     PACKINGBUF_TYPE_MIN           = 0,
     PACKINGBUF_TYPE_UINT          = 0,
     PACKINGBUF_TYPE_SINT          = 1,
-    PACKINGBUF_TYPE_FIXED         = 2,
+    PACKINGBUF_TYPE_FLOAT         = 2,
     PACKINGBUF_TYPE_STRING        = 3,
     PACKINGBUF_TYPE_BINARY        = 4,
     PACKINGBUF_TYPE_UINT_VECTOR   = 5,
@@ -60,7 +60,7 @@ struct PACKINGBUF_VALUE
     const char    *tag;  //field tag
     unsigned char *data; //data[size]
     unsigned int   size; //sizeof(*data)
-    uint8_t        type; //PACKINGBUF_TYPE_*
+    unsigned int   type; //PACKINGBUF_TYPE_*
 };
 
 struct PACKINGBUF_STRING
@@ -182,6 +182,7 @@ unsigned int PACKINGBUFAPI PackingBufValue_IsDouble(PACKINGBUF_VALUE *value);
 #endif
 #endif
 
+unsigned int PACKINGBUFAPI PackingBufValue_GetSize(PACKINGBUF_VALUE *value);
 unsigned int PACKINGBUFAPI PackingBufValue_GetIntSize(PACKINGBUF_VALUE *value);
 
 unsigned int PACKINGBUFAPI PackingBufValue_GetString(PACKINGBUF_VALUE *value, PACKINGBUF_STRING *to);
